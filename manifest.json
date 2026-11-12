@@ -1,0 +1,132 @@
+{
+  "$schema": "https://raw.githubusercontent.com/t8y2/dbx/main/plugins/manifest.schema.json",
+  "manifest_version": 1,
+  "id": "io.github.smallrob.sql-review",
+  "name": "SQL Review",
+  "version": "0.1.0",
+  "publisher": "smallrob",
+  "description": "静态 SQL 评审台：规则化检查破坏性变更、迁移规范、性能与结构质量，不连接数据库、不执行被评审的 SQL。",
+  "icon": "assets/plugin.svg",
+  "source": "https://github.com/SmallRob/dbx-sql-review",
+  "homepage": "https://github.com/SmallRob/dbx-sql-review",
+  "permissions": [
+    "host.workbench"
+  ],
+  "engines": {
+    "dbx": ">=0.6.38",
+    "host_api": "1"
+  },
+  "entrypoints": {
+    "backend": {
+      "executable": "bin/dbx-plugin-sql-review"
+    },
+    "ui": {
+      "root": "ui",
+      "entry": "ui/index.html"
+    }
+  },
+  "contributions": [
+    {
+      "type": "workbench",
+      "id": "io.github.smallrob.sql-review.workbench",
+      "label": "SQL Review",
+      "description": "评审单段 SQL 或整个迁移目录，输出逐条命中与质量画像。",
+      "icon": "assets/plugin.svg"
+    },
+    {
+      "type": "command",
+      "id": "io.github.smallrob.sql-review.open",
+      "label": "SQL Review",
+      "description": "以独立工作台标签页打开 SQL 评审台（全屏）。",
+      "icon": "assets/plugin.svg",
+      "action": {
+        "type": "open-workbench",
+        "workbench": "io.github.smallrob.sql-review.workbench",
+        "presentation": "tab"
+      }
+    },
+    {
+      "type": "command",
+      "id": "io.github.smallrob.sql-review.open-panel",
+      "label": "SQL Review：在底部面板打开",
+      "description": "以底部 Dock 面板打开，适合边写 SQL 边查看。",
+      "action": {
+        "type": "open-workbench",
+        "workbench": "io.github.smallrob.sql-review.workbench",
+        "presentation": "panel"
+      }
+    },
+    {
+      "type": "menus",
+      "id": "io.github.smallrob.sql-review.menus",
+      "items": [
+        {
+          "location": "appToolbar",
+          "command": "io.github.smallrob.sql-review.open",
+          "group": "navigation",
+          "order": 30,
+          "default_visible": true
+        },
+        {
+          "location": "commandPalette",
+          "command": "io.github.smallrob.sql-review.open",
+          "group": "navigation",
+          "order": 30
+        },
+        {
+          "location": "commandPalette",
+          "command": "io.github.smallrob.sql-review.open-panel",
+          "group": "secondary",
+          "order": 31
+        }
+      ]
+    },
+    {
+      "type": "mcp",
+      "id": "io.github.smallrob.sql-review.mcp",
+      "description": "把只读的静态 SQL 评审与规则清单暴露给 MCP 客户端。两个工具全部为 read，不执行被评审的 SQL。",
+      "external_tools": true,
+      "ai_tools": true,
+      "toolsets": [
+        {
+          "id": "review",
+          "title": "只读评审",
+          "description": "SQL 规则评审与规则清单。均不执行被评审语句。"
+        }
+      ],
+      "tools": {
+        "sql_review": {
+          "access": "read",
+          "toolset": "review"
+        },
+        "sql_rules": {
+          "access": "read",
+          "toolset": "review"
+        }
+      }
+    }
+  ],
+  "localizations": {
+    "zh-CN": {
+      "name": "SQL 评审台",
+      "description": "静态 SQL 评审台：规则化检查破坏性变更、迁移规范、性能与结构质量，不连接数据库、不执行被评审的 SQL。",
+      "contributions": {
+        "io.github.smallrob.sql-review.workbench": {
+          "label": "SQL 评审台",
+          "description": "评审单段 SQL 或整个迁移目录，输出逐条命中与质量画像。"
+        },
+        "io.github.smallrob.sql-review.open": {
+          "label": "SQL 评审台",
+          "description": "以独立工作台标签页打开 SQL 评审台（全屏）。"
+        },
+        "io.github.smallrob.sql-review.open-panel": {
+          "label": "SQL 评审台：在底部面板打开",
+          "description": "以底部 Dock 面板打开，适合边写 SQL 边查看。"
+        },
+        "io.github.smallrob.sql-review.menus": {
+          "label": "SQL 评审台"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+# 统一以 LF 落盘，避免 Windows 检出把 CRLF 写回源码/YAML/JSON。
+# 插件同时构建 linux/darwin/windows 五个目标平台，行尾不一致会制造无意义 diff。
+* text=auto eol=lf
+
+*.go    text eol=lf
+*.mod   text eol=lf
+*.sum   text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.py    text eol=lf
+*.toml  text eol=lf
+*.html  text eol=lf
+*.svg   text eol=lf
+*.txt   text eol=lf
+
+*.exe   binary
+*.dbxp  binary
+*.zip   binary

@@ -1,0 +1,93 @@
+name: Verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.22.x"
+          cache: false
+
+      - name: Vet
+        working-directory: backend
+        run: go vet ./...
+
+      - name: Test
+        working-directory: backend
+        # SDK 随仓库自带（backend/dbxpluginsdk），构建不依赖外网。
+        run: go test ./...
+
+      - name: Cross-compile every release target
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          mkdir -p ../.crossbuild
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64; do
+            GOOS="${target%/*}" GOARCH="${target#*/}" \
+              go build -o "../.crossbuild/dbx-plugin-sql-review-${target%/*}-${target#*/}" .
+            echo "built ${target}"
+          done
+
+      - name: Package and verify the unsigned candidate
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          go build -o ../.crossbuild/dbx-plugin-sql-review .
+          cd ..
+          npx --yes @dbx-app/plugin-cli@0.1.10 package .
+          # 冒烟测试：直接对打包出的二进制做一次真实 JSON-RPC 握手。
+          mkdir -p /tmp/dbxpkg
+          cd /tmp/dbxpkg
+          unzip -o "$GITHUB_WORKSPACE"/dist/*.dbxp > /dev/null
+          BIN=$(find /tmp/dbxpkg/bin -type f -print -quit)
+          cd "$GITHUB_WORKSPACE/backend"
+          go run ./cmd/dbxpoke "$BIN"
+
+      - name: Check the manifest against the DBX schema
+        run: |
+          set -euo pipefail
+          curl -fsSL https://raw.githubusercontent.com/t8y2/dbx/main/plugins/manifest.schema.json -o /tmp/manifest.schema.json
+          python3 - <<'PY'
+          import json, sys
+          schema = json.load(open('/tmp/manifest.schema.json', encoding='utf-8'))
+          manifest = json.load(open('manifest.json', encoding='utf-8'))
+          allowed = set(schema.get('properties', {}))
+          extra = set(manifest) - allowed
+          if extra:
+              print('manifest 含未知字段:', sorted(extra))
+              sys.exit(1)
+          for field in schema.get('required', []):
+              if field not in manifest:
+                  print('manifest 缺必填字段:', field)
+                  sys.exit(1)
+          print('manifest 字段检查通过')
+          PY
+
+      - name: Store metadata must match the manifest identity
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, sys
+          manifest = json.load(open('manifest.json', encoding='utf-8'))
+          store = json.load(open('.dbx-store.json', encoding='utf-8'))
+          # 市场的 candidate.permissions 以包内 manifest 为准，
+          # 手写的 .dbx-store.json 若与之不一致会产生目录/包权限不匹配。
+          if sorted(store.get('permissions', [])) != sorted(manifest.get('permissions', [])):
+              print('permissions 不一致:')
+              print('  .dbx-store.json:', sorted(store.get('permissions', [])))
+              print('  manifest.json   :', sorted(manifest.get('permissions', [])))
+              sys.exit(1)
+          print('permissions 一致:', sorted(store.get('permissions', [])))
+          PY

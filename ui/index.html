@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SQL Review</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1a1d21;
+    --muted: #6b7280;
+    --line: #e4e7eb;
+    --panel: #f8f9fb;
+    --accent: #2563eb;
+    --accent-fg: #ffffff;
+    --critical: #b42318;
+    --high: #d97706;
+    --medium: #b45309;
+    --low: #0284c7;
+    --info: #64748b;
+    --pass: #059669;
+    --ok-bg: #ecfdf5;
+    --ok-fg: #047857;
+    --bad-bg: #fef2f2;
+    --bad-fg: #b42318;
+    --warn-bg: #fffbeb;
+    --warn-fg: #b45309;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181d;
+      --fg: #e8eaed;
+      --muted: #9aa3af;
+      --line: #2b2f36;
+      --panel: #1d2026;
+      --accent: #5b8def;
+      --accent-fg: #0b0d10;
+      --critical: #f97066;
+      --high: #fdb022;
+      --medium: #fdb022;
+      --low: #53b1fd;
+      --info: #98a2b3;
+      --pass: #47cd89;
+      --ok-bg: #0d2b20;
+      --ok-fg: #47cd89;
+      --bad-bg: #2a1614;
+      --bad-fg: #f97066;
+      --warn-bg: #2a2113;
+      --warn-fg: #fdb022;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Hiragino Sans GB", "Microsoft YaHei", Inter, system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button {
+    border: 1px solid var(--line);
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 7px 13px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  button.primary:hover:not(:disabled) { filter: brightness(1.08); }
+  input[type="text"], input[type="number"], select, textarea {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 7px 10px;
+    background: var(--bg);
+    width: 100%;
+  }
+  textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent); outline-offset: -1px; }
+
+  /* ---------------- top bar ---------------- */
+  header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 10px 16px; border-bottom: 1px solid var(--line);
+    background: var(--panel); flex: 0 0 auto; flex-wrap: wrap;
+  }
+  header h1 { font-size: 15px; margin: 0; font-weight: 650; letter-spacing: .2px; }
+  .brand { display: flex; align-items: center; gap: 9px; }
+  .brand svg { width: 20px; height: 20px; }
+  .spacer { flex: 1 1 auto; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px; border-radius: 999px; font-size: 12px;
+    background: var(--panel); border: 1px solid var(--line); color: var(--muted);
+  }
+  .pill.ok { background: var(--ok-bg); color: var(--ok-fg); border-color: transparent; }
+  .pill.bad { background: var(--bad-bg); color: var(--bad-fg); border-color: transparent; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+  nav.tabs { display: flex; gap: 2px; padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--bg); flex: 0 0 auto; }
+  nav.tabs button {
+    border: none; border-bottom: 2px solid transparent; border-radius: 0;
+    background: none; padding: 9px 15px; color: var(--muted); font-weight: 500;
+  }
+  nav.tabs button.active { color: var(--fg); border-bottom-color: var(--accent); }
+  nav.tabs button:hover:not(.active) { color: var(--fg); }
+
+  main { flex: 1 1 auto; overflow: auto; padding: 16px; }
+  .page { display: grid; gap: 16px; }
+  .cols { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(360px, 1.25fr); gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+
+  .card { border: 1px solid var(--line); border-radius: 12px; background: var(--bg); overflow: hidden; }
+  .card > header {
+    border: none; border-bottom: 1px solid var(--line);
+    padding: 10px 14px; background: var(--panel);
+  }
+  .card > header h2 { font-size: 13px; margin: 0; font-weight: 600; }
+  .card-body { padding: 14px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  label.field { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+  .hint { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+
+  .metric { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end; }
+  .metric .box { display: grid; gap: 2px; }
+  .metric .num { font-size: 26px; font-weight: 680; line-height: 1.1; }
+  .metric .cap { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+
+  .dims { display: grid; gap: 7px; margin-top: 12px; }
+  .dim { display: grid; grid-template-columns: 82px 1fr 34px; gap: 9px; align-items: center; font-size: 12px; }
+  .bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--pass); border-radius: 3px; }
+  .bar > i.mid { background: var(--high); }
+  .bar > i.low { background: var(--critical); }
+
+  .finding { border: 1px solid var(--line); border-left-width: 3px; border-radius: 9px; padding: 10px 12px; margin-bottom: 8px; background: var(--bg); }
+  .finding.critical { border-left-color: var(--critical); }
+  .finding.high { border-left-color: var(--high); }
+  .finding.medium { border-left-color: var(--medium); }
+  .finding.low { border-left-color: var(--low); }
+  .finding.info { border-left-color: var(--info); }
+  .finding h4 { margin: 0 0 4px; font-size: 13px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .finding .rule { font: 11px/1.4 ui-monospace, Menlo, Consolas, monospace; color: var(--muted); }
+  .finding p { margin: 3px 0; font-size: 13px; }
+  .finding .advice { color: var(--muted); }
+  .finding pre {
+    margin: 6px 0 0; padding: 7px 9px; background: var(--panel);
+    border-radius: 6px; font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace;
+    overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+  }
+  .sev {
+    font-size: 11px; padding: 1px 7px; border-radius: 999px; font-weight: 600;
+    border: 1px solid currentColor; flex: 0 0 auto;
+  }
+  .sev.critical { color: var(--critical); }
+  .sev.high { color: var(--high); }
+  .sev.medium { color: var(--medium); }
+  .sev.low { color: var(--low); }
+  .sev.info { color: var(--info); }
+  .sev.pass { color: var(--pass); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 9px; border-bottom: 1px solid var(--line); }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); font-weight: 600; }
+  tbody tr:hover { background: var(--panel); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .empty { color: var(--muted); font-size: 13px; padding: 22px; text-align: center; }
+
+  .err { color: var(--bad-fg); background: var(--bad-bg); border: 1px solid transparent; border-radius: 8px; padding: 9px 12px; font-size: 13px; margin-bottom: 12px; }
+  .err:empty { display: none; }
+  .ok-banner { color: var(--ok-fg); background: var(--ok-bg); border-radius: 8px; padding: 9px 12px; font-size: 13px; margin-bottom: 12px; }
+  .warn-banner { color: var(--warn-fg); background: var(--warn-bg); border-radius: 8px; padding: 9px 12px; font-size: 13px; margin-bottom: 12px; }
+
+  .toast {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--fg); color: var(--bg); padding: 9px 16px; border-radius: 8px;
+    font-size: 13px; opacity: 0; pointer-events: none; transition: all .22s; z-index: 50;
+    max-width: 80vw;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  dialog {
+    border: 1px solid var(--line); border-radius: 12px; padding: 18px;
+    background: var(--bg); color: var(--fg); max-width: 560px; width: 92vw;
+  }
+  dialog::backdrop { background: rgba(0,0,0,.45); }
+  .rule-row { display: grid; grid-template-columns: 96px 1fr 120px 92px; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .rule-row .rid { font: 12px ui-monospace, Menlo, Consolas, monospace; color: var(--muted); }
+  .rule-row .rtitle { font-size: 13px; }
+  .rule-row .rhelp { font-size: 11px; color: var(--muted); grid-column: 2 / 4; }
+  .rule-row.opt .rtitle::after { content: "项目约定"; font-size: 10px; color: var(--warn-fg); border: 1px solid currentColor; border-radius: 999px; padding: 0 6px; margin-left: 7px; vertical-align: middle; }
+  .rule-row input[type="checkbox"] { justify-self: start; width: 16px; height: 16px; }
+  .dropzone { border: 2px dashed var(--line); border-radius: 10px; padding: 26px; text-align: center; color: var(--muted); font-size: 13px; }
+  .dropzone.over { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  .tabs-sub { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tabs-sub button { padding: 4px 11px; font-size: 12px; border-radius: 999px; }
+  .tabs-sub button.active { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .scroll-y { max-height: 460px; overflow-y: auto; }
+  a { color: var(--accent); }
+  code { font: 12px ui-monospace, Menlo, Consolas, monospace; background: var(--panel); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/>
+    </svg>
+    <h1>SQL Review</h1>
+  </div>
+  <span class="pill" id="statusPill"><span class="dot"></span><span id="statusText">正在连接…</span></span>
+  <span class="pill" id="modePill">静态分析 · 不连库</span>
+  <div class="spacer"></div>
+  <button id="btnFullscreen" hidden>独立标签页</button>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="review">评审</button>
+  <button class="tab" data-tab="batch">批量目录</button>
+  <button class="tab" data-tab="rules">规则</button>
+  <button class="tab" data-tab="audit">记录</button>
+</nav>
+
+<main>
+  <!-- ============ 评审 ============ -->
+  <section class="page" id="tab-review">
+    <div class="cols">
+      <div class="card">
+        <header><h2>待评审 SQL</h2></header>
+        <div class="card-body">
+          <div class="err" id="reviewErr"></div>
+          <textarea id="sql" rows="16" spellcheck="false" placeholder="在此粘贴 SQL，或把 .sql 文件拖进来…"></textarea>
+          <div class="row" style="margin-top:10px">
+            <button class="primary" id="btnReview">开始评审</button>
+            <button id="btnClear">清空</button>
+            <span class="spacer"></span>
+            <label class="field" style="flex:0 0 120px">
+              <select id="dialect">
+                <option value="">自动判定方言</option>
+                <option value="mysql">MySQL</option>
+                <option value="sqlite">SQLite</option>
+              </select>
+            </label>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <label class="row" style="gap:6px;font-size:13px">
+              <input type="checkbox" id="migration" style="width:16px;height:16px" checked />
+              <span>按迁移脚本口径评审（命名 / 幂等类规则）</span>
+            </label>
+          </div>
+          <p class="hint">纯静态词法分析：不连接数据库、不执行被评审的 SQL。字符串字面量在报告中会被替换为 <code>?</code>。</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <header><h2>评审结果</h2></header>
+        <div class="card-body" id="reviewOut">
+          <div class="empty">还没有评审结果。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 批量目录 ============ -->
+  <section class="page" id="tab-batch" hidden>
+    <div class="cols">
+      <div class="card">
+        <header><h2>迁移目录</h2></header>
+        <div class="card-body">
+          <div class="err" id="batchErr"></div>
+          <div class="dropzone" id="dropzone">把 .sql 文件拖到这里<br /><span style="font-size:12px">可一次拖多个，自动进入批量评审</span></div>
+          <div class="row" style="margin-top:12px">
+            <input type="file" id="fileInput" accept=".sql" multiple />
+          </div>
+          <div class="row" style="margin-top:10px">
+            <label class="field" style="flex:0 0 150px">
+              <select id="batchDialect">
+                <option value="">自动判定方言</option>
+                <option value="mysql">MySQL</option>
+                <option value="sqlite">SQLite</option>
+              </select>
+            </label>
+            <button class="primary" id="btnBatchRun" disabled>批量评审</button>
+            <button id="btnBatchExport" disabled>导出 Markdown</button>
+          </div>
+          <p class="hint">批量评审会额外做目录内一致性校验：版本重复、版本缺口、不同版本内容雷同。</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <header><h2>批量报告</h2></header>
+        <div class="card-body" id="batchOut">
+          <div class="empty">还没有批量报告。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 规则 ============ -->
+  <section class="page" id="tab-rules" hidden>
+    <div class="card">
+      <header><h2>规则清单</h2></header>
+      <div class="card-body">
+        <div class="err" id="rulesErr"></div>
+        <div class="row" style="margin-bottom:12px">
+          <button id="btnRulesSave">保存规则配置</button>
+          <button id="btnRulesReset">恢复默认</button>
+          <span class="spacer"></span>
+          <span class="pill" id="rulesCount"></span>
+        </div>
+        <div class="warn-banner">
+          标记为「项目约定」的规则默认关闭。是否要求写 <code>USE</code>、列是否必须有 <code>COMMENT</code>、
+          是否必须显式写 <code>ENGINE</code>、DDL 是否必须带幂等守卫——这些都属于团队约定而非通用 SQL 质量问题，
+          请按自己仓库的规范开启。
+        </div>
+        <div class="tabs-sub" id="ruleCats"></div>
+        <div class="scroll-y" id="ruleList"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 记录 ============ -->
+  <section class="page" id="tab-audit" hidden>
+    <div class="card">
+      <header><h2>评审记录</h2></header>
+      <div class="card-body">
+        <div class="err" id="auditErr"></div>
+        <div class="row" style="margin-bottom:12px">
+          <button id="btnAuditRefresh">刷新</button>
+          <button id="btnAuditVerify">校验哈希链</button>
+          <span class="spacer"></span>
+          <span class="pill" id="auditState"></span>
+        </div>
+        <p class="hint">
+          记录以 append-only 的哈希链保存在插件数据目录：<code>hash = SHA256(prevHash + entry)</code>。
+          它能证明记录未被事后改写，<b>不能</b>证明是谁写的——评审人是自填标识，没有身份认证。
+        </p>
+        <div id="auditOut"><div class="empty">没有记录。</div></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const SEV_LABEL = { critical: "严重", high: "高", medium: "中", low: "低", info: "提示", pass: "通过" };
+  const DIALECT_LABEL = { mysql: "MySQL", sqlite: "SQLite", mixed: "MySQL + SQLite" };
+
+  const state = { rules: [], config: null, batchId: null, report: null, files: [], ruleCat: "all" };
+
+  function invoke(method, params, timeoutMs) {
+    if (!window.dbxPlugin || typeof window.dbxPlugin.invoke !== "function") {
+      return Promise.reject(new Error("未检测到 window.dbxPlugin，请在 DBX 内打开本页面"));
+    }
+    return window.dbxPlugin.invoke(method, params || {}, { timeoutMs: timeoutMs || 60000 });
+  }
+  function toast(msg) {
+    const el = $("toast"); el.textContent = msg; el.classList.add("show");
+    clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove("show"), 2600);
+  }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+  function showErr(id, msg) {
+    const el = $(id); el.textContent = msg || ""; el.classList.toggle("show", !!msg);
+  }
+  function sevBadge(sev) {
+    return '<span class="sev ' + esc(sev) + '">' + esc(SEV_LABEL[sev] || sev) + '</span>';
+  }
+
+  // ---------------- tabs
+  function activateTab(name) {
+    document.querySelectorAll("nav.tabs .tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
+    ["review", "batch", "rules", "audit"].forEach((t) => { $("tab-" + t).hidden = t !== name; });
+    if (name === "rules") loadRules();
+    if (name === "audit") loadAudit();
+  }
+  document.querySelectorAll("nav.tabs .tab").forEach((btn) => {
+    btn.addEventListener("click", () => activateTab(btn.dataset.tab));
+  });
+
+  // ---------------- 评审
+  async function doReview() {
+    const sql = $("sql").value;
+    if (!sql.trim()) { showErr("reviewErr", "请先输入 SQL。"); return; }
+    showErr("reviewErr", "");
+    $("btnReview").disabled = true;
+    try {
+      const r = await invoke("review/sql", {
+        sql: sql,
+        file: "inline.sql",
+        migration: $("migration").checked,
+        dialect: $("dialect").value,
+      }, 60000);
+      renderResult(r.result);
+    } catch (e) {
+      showErr("reviewErr", "评审失败：" + e.message);
+    } finally {
+      $("btnReview").disabled = false;
+    }
+  }
+  $("btnReview").addEventListener("click", doReview);
+  $("btnClear").addEventListener("click", () => { $("sql").value = ""; showErr("reviewErr", ""); $("reviewOut").innerHTML = '<div class="empty">还没有评审结果。</div>'; });
+
+  function qualityColor(score) {
+    if (score >= 86) return "";
+    if (score >= 72) return "mid";
+    return "low";
+  }
+  function renderResult(res) {
+    const m = res.metrics || {};
+    const out = [];
+    out.push('<div class="metric">');
+    out.push('<div class="box"><div class="num">' + esc(m.quality != null ? m.quality : res.score) + '</div><div class="cap">质量分</div></div>');
+    out.push('<div class="box"><div class="num">' + esc(m.grade || "—") + '</div><div class="cap">' + esc(m.gradeLabel || "") + '</div></div>');
+    out.push('<div class="box"><div class="num">' + esc(res.score) + '</div><div class="cap">风险分</div></div>');
+    out.push('<div class="box"><div class="num">' + esc(res.statements) + '</div><div class="cap">语句</div></div>');
+    out.push('<div class="box"><div class="num">' + esc(res.tables.length) + '</div><div class="cap">涉及表</div></div>');
+    out.push('<div class="box"><div class="num">' + esc(DIALECT_LABEL[res.dialect] || res.dialect) + '</div><div class="cap">方言</div></div>');
+    out.push('</div>');
+    if (m.verdict) out.push('<p style="margin:10px 0 0"><b>' + esc(m.verdict) + '</b></p>');
+
+    if (m.dimensions && m.dimensions.length) {
+      out.push('<div class="dims">');
+      for (const d of m.dimensions) {
+        out.push('<div class="dim"><span>' + esc(d.label) + '</span><span class="bar"><i class="' + qualityColor(d.score) + '" style="width:' + Math.max(2, d.score) + '%"></i></span><span style="text-align:right">' + esc(d.score) + '</span></div>');
+      }
+      out.push('</div>');
+    }
+
+    const counts = res.counts || {};
+    const parts = ["critical", "high", "medium", "low", "info"]
+      .filter((k) => counts[k])
+      .map((k) => SEV_LABEL[k] + " " + counts[k]);
+    if (parts.length) {
+      out.push('<div class="row" style="margin-top:12px">' + parts.map((p) => '<span class="pill">' + esc(p) + '</span>').join("") + '</div>');
+    }
+    if (res.note) out.push('<p class="hint">' + esc(res.note) + '</p>');
+
+    out.push('<h3 style="font-size:13px;margin:16px 0 8px">逐条命中（' + res.findings.length + '）</h3>');
+    if (!res.findings.length) {
+      out.push('<div class="ok-banner">未命中任何规则。</div>');
+    } else {
+      for (const f of res.findings) {
+        out.push('<div class="finding ' + esc(f.severity) + '">');
+        out.push('<h4>' + sevBadge(f.severity) + '<span>' + esc(f.title) + '</span><span class="rule">' + esc(f.ruleId) + ' · L' + esc(f.line) + (f.dynamic ? " · 动态" : "") + '</span></h4>');
+        out.push('<p>' + esc(f.message) + '</p>');
+        if (f.advice) out.push('<p class="advice">建议：' + esc(f.advice) + '</p>');
+        if (f.snippet) out.push('<pre>' + esc(f.snippet) + '</pre>');
+        out.push('</div>');
+      }
+    }
+    $("reviewOut").innerHTML = out.join("");
+  }
+
+  // ---------------- 批量
+  function readFileText(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result || ""));
+      r.onerror = () => reject(r.error);
+      r.readAsText(file);
+    });
+  }
+  async function addFiles(fileList) {
+    const arr = Array.from(fileList || []).filter((f) => /\.sql$/i.test(f.name) || f.type === "");
+    if (!arr.length) { toast("没有找到 .sql 文件"); return; }
+    showErr("batchErr", "");
+    const payload = [];
+    for (const f of arr) {
+      try { payload.push({ path: f.name, content: await readFileText(f) }); }
+      catch (e) { toast("读取失败：" + f.name); }
+    }
+    if (!payload.length) return;
+    state.files = state.files.concat(payload);
+    $("btnBatchRun").disabled = false;
+    toast("已载入 " + payload.length + " 个文件");
+  }
+  $("fileInput").addEventListener("change", (e) => { addFiles(e.target.files); e.target.value = ""; });
+
+  const dz = $("dropzone");
+  ["dragenter", "dragover"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove("over"); }));
+  dz.addEventListener("drop", (e) => { if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files); });
+  // 整页兜底：拖到界面其它位置也能接住
+  ["dragover", "drop"].forEach((ev) => document.body.addEventListener(ev, (e) => {
+    e.preventDefault();
+    if (ev === "drop" && e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
+  }));
+
+  $("btnBatchRun").addEventListener("click", async () => {
+    if (!state.files.length) { showErr("batchErr", "请先选择 .sql 文件。"); return; }
+    showErr("batchErr", "");
+    $("btnBatchRun").disabled = true;
+    try {
+      const { batchId } = await invoke("batch/begin", { total: state.files.length, dialect: $("batchDialect").value });
+      state.batchId = batchId;
+      // 分块上传，避免单帧超过 8 MB 上限
+      const CHUNK = 20;
+      for (let i = 0; i < state.files.length; i += CHUNK) {
+        await invoke("batch/add", { batchId, files: state.files.slice(i, i + CHUNK) }, 60000);
+      }
+      const { report } = await invoke("batch/run", { batchId }, 600000);
+      state.report = report;
+      renderBatch(report);
+      $("btnBatchExport").disabled = false;
+    } catch (e) {
+      showErr("batchErr", "批量评审失败：" + e.message);
+    } finally {
+      $("btnBatchRun").disabled = false;
+    }
+  });
+
+  $("btnBatchExport").addEventListener("click", async () => {
+    if (!state.batchId) return;
+    try {
+      const { markdown } = await invoke("batch/export", { batchId: state.batchId });
+      if (window.dbxPlugin && typeof window.dbxPlugin.saveFile === "function") {
+        await window.dbxPlugin.saveFile({
+          suggestedName: "sql-review-report.md",
+          content: markdown,
+        });
+        toast("报告已保存");
+      } else {
+        toast("当前宿主不支持保存文件");
+      }
+    } catch (e) { toast("导出失败：" + e.message); }
+  });
+
+  function renderBatch(report) {
+    const s = report.summary || {};
+    const m = s.quality || {};
+    const out = [];
+    out.push('<div class="metric">');
+    out.push('<div class="box"><div class="num">' + esc(s.files) + '</div><div class="cap">文件</div></div>');
+    out.push('<div class="box"><div class="num">' + esc(m.quality != null ? m.quality : "—") + '</div><div class="cap">质量分</div></div>');
+    out.push('<div class="box"><div class="num">' + esc(m.grade || "—") + '</div><div class="cap">' + esc(m.gradeLabel || "") + '</div></div>');
+    out.push('<div class="box"><div class="num">' + esc(s.failing) + '</div><div class="cap">待改进</div></div>');
+    out.push('<div class="box"><div class="num">' + esc(s.passing) + '</div><div class="cap">通过</div></div>');
+    out.push('</div>');
+    if (m.verdict) out.push('<p style="margin:10px 0 0"><b>' + esc(m.verdict) + '</b></p>');
+    if (report.note) out.push('<p class="hint">' + esc(report.note) + '</p>');
+
+    if (report.consistency && report.consistency.length) {
+      out.push('<h3 style="font-size:13px;margin:16px 0 8px">目录一致性（' + report.consistency.length + '）</h3>');
+      for (const f of report.consistency) {
+        out.push('<div class="finding ' + esc(f.severity) + '"><h4>' + sevBadge(f.severity) +
+          '<span>' + esc(f.title) + '</span><span class="rule">' + esc(f.ruleId) + '</span></h4>' +
+          '<p>' + esc(f.message) + '</p></div>');
+      }
+    }
+
+    out.push('<h3 style="font-size:13px;margin:16px 0 8px">文件明细</h3>');
+    if (!report.files || !report.files.length) {
+      out.push('<div class="empty">没有文件。</div>');
+    } else {
+      out.push('<table><thead><tr><th>文件</th><th>版本</th><th class="num">语句</th><th class="num">质量</th><th>等级</th><th>结果</th></tr></thead><tbody>');
+      for (const f of report.files) {
+        out.push('<tr><td>' + esc(f.file) + '</td><td>' + esc(f.version || "—") + '</td><td class="num">' + esc(f.statements) +
+          '</td><td class="num">' + esc(f.quality) + '</td><td>' + esc(f.grade) + '</td><td>' + sevBadge(f.level) + '</td></tr>');
+      }
+      out.push('</tbody></table>');
+    }
+    $("batchOut").innerHTML = out.join("");
+  }
+
+  // ---------------- 规则
+  async function loadRules() {
+    showErr("rulesErr", "");
+    try {
+      const data = await invoke("rules/get");
+      state.rules = data.rules || [];
+      state.config = data.config || {};
+      renderRules();
+    } catch (e) {
+      showErr("rulesErr", "读取规则失败：" + e.message);
+    }
+  }
+  function renderRules() {
+    const cats = [];
+    state.rules.forEach((r) => { if (!cats.includes(r.category)) cats.push(r.category); });
+    const labels = {};
+    state.rules.forEach((r) => { labels[r.category] = r.categoryLabel; });
+
+    const catBar = ['<button class="' + (state.ruleCat === "all" ? "active" : "") + '" data-cat="all">全部</button>'];
+    cats.forEach((c) => { catBar.push('<button class="' + (state.ruleCat === c ? "active" : "") + '" data-cat="' + esc(c) + '">' + esc(labels[c] || c) + '</button>'); });
+    $("ruleCats").innerHTML = catBar.join("");
+    $("ruleCats").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { state.ruleCat = b.dataset.cat; renderRules(); }));
+
+    const disabled = new Set((state.config.disabled || []).map((x) => String(x).toUpperCase()));
+    const list = state.rules.filter((r) => state.ruleCat === "all" || r.category === state.ruleCat);
+    $("rulesCount").textContent = list.length + " 条 · 启用 " +
+      list.filter((r) => !disabled.has(String(r.id).toUpperCase())).length;
+
+    const html = list.map((r) => {
+      const on = !disabled.has(String(r.id).toUpperCase());
+      const sev = (state.config.severity || {})[r.id] || r.defaultSeverity;
+      return '<div class="rule-row' + (r.optional ? " opt" : "") + '">' +
+        '<span class="rid">' + esc(r.id) + '</span>' +
+        '<span class="rtitle">' + esc(r.title) + '</span>' +
+        '<select data-sev="' + esc(r.id) + '">' +
+          ["critical", "high", "medium", "low", "info"].map((s) =>
+            '<option value="' + s + '"' + (s === sev ? " selected" : "") + '>' + SEV_LABEL[s] + '</option>').join("") +
+        '</select>' +
+        '<label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)">' +
+          '<input type="checkbox" data-rule="' + esc(r.id) + '"' + (on ? " checked" : "") + ' />启用</label>' +
+        '<span class="rhelp">' + esc(r.help) + '</span>' +
+      '</div>';
+    }).join("");
+    $("ruleList").innerHTML = html;
+  }
+
+  $("btnRulesSave").addEventListener("click", async () => {
+    const disabled = [];
+    const severity = {};
+    $("ruleList").querySelectorAll("input[data-rule]").forEach((cb) => {
+      if (!cb.checked) disabled.push(cb.getAttribute("data-rule"));
+    });
+    $("ruleList").querySelectorAll("select[data-sev]").forEach((sel) => {
+      severity[sel.getAttribute("data-sev")] = sel.value;
+    });
+    const cfg = Object.assign({}, state.config || {}, { disabled: disabled, severity: severity });
+    try {
+      await invoke("rules/save", { config: cfg });
+      toast("规则配置已保存");
+      await loadRules();
+    } catch (e) { showErr("rulesErr", "保存失败：" + e.message); }
+  });
+
+  $("btnRulesReset").addEventListener("click", async () => {
+    try {
+      // 「恢复默认」= 房规类规则回到默认关闭状态。
+      // 注意不能传 disabled: []——那会把所有房规规则全部打开，
+      // 与后端默认值相反，等于给通用项目套上了团队房规。
+      const optional = state.rules.filter((r) => r.optional).map((r) => r.id);
+      await invoke("rules/save", {
+        config: {
+          disabled: optional,
+          severity: {},
+          thresholds: state.config.thresholds || {},
+        },
+      });
+      toast("已恢复默认（房规类规则已关闭）");
+      await loadRules();
+    } catch (e) { showErr("rulesErr", "重置失败：" + e.message); }
+  });
+
+  // ---------------- 记录
+  async function loadAudit() {
+    showErr("auditErr", "");
+    try {
+      const data = await invoke("audit/list", { limit: 200 });
+      renderAudit(data);
+    } catch (e) {
+      showErr("auditErr", "读取记录失败：" + e.message);
+    }
+  }
+  function renderAudit(data) {
+    const st = $("auditState");
+    st.textContent = (data.chainOk ? "哈希链完整" : "哈希链断裂 @" + data.brokenAt) + " · 共 " + data.total + " 条";
+    st.className = "pill " + (data.chainOk ? "ok" : "bad");
+    if (!data.entries || !data.entries.length) { $("auditOut").innerHTML = '<div class="empty">没有记录。</div>'; return; }
+    const rows = data.entries.map((e) =>
+      "<tr><td>" + esc(e.ts) + "</td><td>" + esc(e.kind) + "</td><td>" + esc(e.subject) +
+      "</td><td>" + sevBadge(e.level) + '</td><td class="num">' + esc(e.score) +
+      '</td><td class="num">' + esc(e.findings) + "</td><td>" + esc(e.actor || "—") + "</td></tr>").join("");
+    $("auditOut").innerHTML = "<table><thead><tr><th>时间</th><th>类型</th><th>对象</th><th>结果</th><th class=\"num\">风险分</th><th class=\"num\">命中</th><th>评审人</th></tr></thead><tbody>" + rows + "</tbody></table>";
+  }
+  $("btnAuditRefresh").addEventListener("click", loadAudit);
+  $("btnAuditVerify").addEventListener("click", async () => {
+    try {
+      const r = await invoke("audit/verify");
+      toast(r.ok ? "哈希链完整，共 " + r.total + " 条" : "哈希链在第 " + r.brokenAt + " 条断裂");
+    } catch (e) { toast("校验失败：" + e.message); }
+  });
+
+  // ---------------- 独立标签页入口
+  // 在 dock/panel 里打开时，提供一个切到独立标签页的按钮。
+  function setupSurface() {
+    const btn = $("btnFullscreen");
+    let settled = false;
+    const showBtn = () => {
+      if (typeof window.dbxPlugin.openWorkbench !== "function") return;
+      btn.dataset.bound = "1";
+      btn.hidden = false;
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        try {
+          await window.dbxPlugin.openWorkbench(window.dbxPlugin.contributionId, undefined, { target: "tab" });
+          try { await window.dbxPlugin.closeWorkbench(); } catch (e2) { /* 已关闭则忽略 */ }
+          toast("已切换到独立标签页");
+        } catch (e) {
+          toast("打开失败：" + e.message);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    };
+    const apply = () => {
+      if (settled) return true;
+      const p = window.dbxPlugin;
+      if (!p || !p.context || !p.context.surface) return false;
+      settled = true;
+      if (p.context.surface === "tab") return true;
+      showBtn();
+      return true;
+    };
+    if (apply()) return;
+    let ticks = 0;
+    const timer = setInterval(() => {
+      if (apply() || ++ticks > 60) {
+        clearInterval(timer);
+        if (!settled && innerHeight > 0 && innerHeight < 480) showBtn();
+      }
+    }, 100);
+  }
+
+  // ---------------- boot
+  (async function boot() {
+    setupSurface();
+    const pill = $("statusPill");
+    try {
+      const r = await invoke("ping");
+      pill.className = "pill ok";
+      $("statusText").textContent = "v" + (r.version || "?") + " · " + (r.rules || 0) + " 条规则";
+    } catch (e) {
+      pill.className = "pill bad";
+      $("statusText").textContent = "sidecar 未就绪";
+      showErr("reviewErr", "sidecar 未就绪：" + e.message);
+    }
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+/dist/
+/.dbx-dev/
+/.crossbuild/
+# 本地构建产物
+/backend/dbx-plugin-sql-review
+/backend/dbx-plugin-sql-review.exe
+/backend/*.exe
+# sidecar 在没有 DBX_PLUGIN_DATA_DIR 时会把审计日志写到当前目录
+/backend/audit.jsonl
+.dbx-repository-signing-key.env
+.DS_Store
+*.log
+*.signed.dbxp
