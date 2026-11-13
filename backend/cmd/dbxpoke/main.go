@@ -109,7 +109,8 @@ func main() {
 
 	// 1) initialize
 	var init struct {
-		ProtocolVersion int `json:"protocolVersion"`
+		ProtocolVersion int      `json:"protocolVersion"`
+		Capabilities    []string `json:"capabilities"`
 		Plugin          struct {
 			ID      string `json:"id"`
 			Version string `json:"version"`
@@ -121,14 +122,18 @@ func main() {
 		fmt.Fprintln(os.Stderr, "FAIL initialize:", err)
 		os.Exit(1)
 	}
-	fmt.Printf("initialize ok: protocol=%d id=%s version=%s\n",
-		init.ProtocolVersion, init.Plugin.ID, init.Plugin.Version)
+	if init.Capabilities == nil {
+		fmt.Fprintln(os.Stderr, "FAIL initialize capabilities decoded as null; new DBX requires an array")
+		os.Exit(1)
+	}
+	fmt.Printf("initialize ok: protocol=%d id=%s version=%s capabilities=%d\n",
+		init.ProtocolVersion, init.Plugin.ID, init.Plugin.Version, len(init.Capabilities))
 
 	// 2) ping
 	var ping struct {
-		OK     bool   `json:"ok"`
-		Ver    string `json:"version"`
-		Rules  int    `json:"rules"`
+		OK    bool   `json:"ok"`
+		Ver   string `json:"version"`
+		Rules int    `json:"rules"`
 	}
 	if err := send("ping", nil, &ping); err != nil {
 		fmt.Fprintln(os.Stderr, "FAIL ping:", err)
@@ -143,7 +148,7 @@ func main() {
 	// 3) review/sql —— 核心能力，必须能命中规则
 	var review struct {
 		Result struct {
-			Score    int `json:"score"`
+			Score    int    `json:"score"`
 			Level    string `json:"level"`
 			Findings []struct {
 				RuleID string `json:"ruleId"`

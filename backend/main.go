@@ -22,7 +22,7 @@ import (
 	dbxpluginsdk "github.com/t8y2/dbx/plugins/sdk/go/dbx-plugin-sdk"
 )
 
-var pluginVersion = "0.1.24"
+var pluginVersion = "0.1.25"
 
 const pluginID = "io.github.smallrob.sql-review"
 
@@ -35,7 +35,7 @@ type plugin struct {
 func main() {
 	p := &plugin{batches: newBatchStore(), reviews: newReviewStore()}
 	server := dbxpluginsdk.NewServer(
-		dbxpluginsdk.Metadata{ID: pluginID, Version: pluginVersion},
+		dbxpluginsdk.Metadata{ID: pluginID, Version: pluginVersion, Capabilities: []string{}},
 		p,
 	)
 	if err := server.Serve(); err != nil {

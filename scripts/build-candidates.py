@@ -43,7 +43,7 @@ TARGETS = {
     "windows-x64": ("windows", "amd64", ".exe"),
 }
 
-VERSION = "0.1.24"
+VERSION = "0.1.25"
 
 # 源码仓库（owner/repo）。插件 ID、publisher、图标与产物 URL 都由它派生，
 # 避免多处硬编码后各自漂移。

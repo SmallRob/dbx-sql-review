@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "io.github.smallrob.sql-review",
   "publisher": "smallrob",
-  "version": "0.1.24",
+  "version": "0.1.25",
   "name": "SQL Review",
   "description": "静态 SQL 评审台：规则化检查破坏性变更、迁移规范、性能与结构质量，不连接数据库、不执行被评审的 SQL。",
-  "icon": "https://raw.githubusercontent.com/SmallRob/dbx-sql-review/v0.1.24/assets/plugin.svg",
+  "icon": "https://raw.githubusercontent.com/SmallRob/dbx-sql-review/v0.1.25/assets/plugin.svg",
   "tags": [
     "sql",
     "review",
@@ -16,10 +16,10 @@
   "permissions": [
     "host.workbench"
   ],
-  "source": "https://github.com/SmallRob/dbx-sql-review/tree/v0.1.24",
+  "source": "https://github.com/SmallRob/dbx-sql-review/tree/v0.1.25",
   "homepage": "https://github.com/SmallRob/dbx-sql-review",
   "license": "Apache-2.0",
-  "releaseNotes": "新增 SQL Server/T-SQL 静态评审与 SQL070–077 八条规则，支持 GO、方括号标识符、临时表、TOP、IDENTITY 与命名约束；规则总数增至 53。内置 AI/MCP 工具扩展为 sql_review、sql_review_result、sql_optimize、sql_rules，支持评审结果续查与结构化优化建议。全程不连接数据库、不执行 SQL、不发起网络请求。",
+  "releaseNotes": "修复新版 DBX 的初始化兼容性：sidecar 初始化返回空的 capabilities 数组而不是 null，避免插件在部分 DBX 版本中加载后调用失败。规则与评审行为不变。新增 SQL Server/T-SQL 静态评审与 SQL070–077 八条规则，支持 GO、方括号标识符、临时表、TOP、IDENTITY 与命名约束；规则总数增至 53。内置 AI/MCP 工具扩展为 sql_review、sql_review_result、sql_optimize、sql_rules，支持评审结果续查与结构化优化建议。全程不连接数据库、不执行 SQL、不发起网络请求。",
   "localizations": {
     "zh-CN": {
       "name": "SQL 评审台",
@@ -29,33 +29,33 @@
   "targets": [
     {
       "target": "darwin-arm64",
-      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.24/io.github.smallrob.sql-review-0.1.24-darwin-arm64.dbxp",
-      "sha256": "fe42edaab6be5d24466a659a531a4fb20b438efee2ac32396a890f8369075909",
-      "size": 2856860
+      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.25/io.github.smallrob.sql-review-0.1.25-darwin-arm64.dbxp",
+      "sha256": "2e92b62f669d8001725dc75b8d1c0c6e07e4978d56590b418f2c00610a708d41",
+      "size": 2856637
     },
     {
       "target": "darwin-x64",
-      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.24/io.github.smallrob.sql-review-0.1.24-darwin-x64.dbxp",
-      "sha256": "48c6d5ca49f5dc74971acdf5a8e490b93a88ca5b197b1ca8db468ae59881d27c",
-      "size": 3052935
+      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.25/io.github.smallrob.sql-review-0.1.25-darwin-x64.dbxp",
+      "sha256": "a98d24e73fcda4e26cee0b33bdd5aaca1b8e5f7ad43fa7f58b64723b204621d5",
+      "size": 3052948
     },
     {
       "target": "linux-arm64",
-      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.24/io.github.smallrob.sql-review-0.1.24-linux-arm64.dbxp",
-      "sha256": "70a80bb8dab0a2e7f640eedf91679198907109ed66a8f8574c6c165f32fca92b",
-      "size": 2742457
+      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.25/io.github.smallrob.sql-review-0.1.25-linux-arm64.dbxp",
+      "sha256": "4348cfcdcd0c3f033acaba42d916e5b7e4b7649dbe73dbf87e3e0ff0f64a22d7",
+      "size": 2742433
     },
     {
       "target": "linux-x64",
-      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.24/io.github.smallrob.sql-review-0.1.24-linux-x64.dbxp",
-      "sha256": "3aab149b12d74827fc7c24927e1b5ddf75d60ad01879172fdbd2cb53edaef65b",
-      "size": 3002321
+      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.25/io.github.smallrob.sql-review-0.1.25-linux-x64.dbxp",
+      "sha256": "7ca4321d9aaf8b7993a1f5a309c8192b6e93620394ec4e4fefeeb1c69ea02a37",
+      "size": 3002311
     },
     {
       "target": "windows-x64",
-      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.24/io.github.smallrob.sql-review-0.1.24-windows-x64.dbxp",
-      "sha256": "2bba0bb4046eb382b159e26f8a5dab903864ddf412852294489f8a64933ad510",
-      "size": 3041306
+      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.25/io.github.smallrob.sql-review-0.1.25-windows-x64.dbxp",
+      "sha256": "e8fd881973589f3a1c68804b0520052772d4367e5a4ce01fb6692d3dd5f56db8",
+      "size": 3041296
     }
   ]
 }
