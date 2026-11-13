@@ -17,21 +17,23 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	dbxpluginsdk "github.com/t8y2/dbx/plugins/sdk/go/dbx-plugin-sdk"
 )
 
-var pluginVersion = "0.1.0"
+var pluginVersion = "0.1.24"
 
 const pluginID = "io.github.smallrob.sql-review"
 
 type plugin struct {
 	mu      sync.Mutex
 	batches *batchStore
+	reviews *reviewStore
 }
 
 func main() {
-	p := &plugin{batches: newBatchStore()}
+	p := &plugin{batches: newBatchStore(), reviews: newReviewStore()}
 	server := dbxpluginsdk.NewServer(
 		dbxpluginsdk.Metadata{ID: pluginID, Version: pluginVersion},
 		p,
@@ -47,13 +49,14 @@ func (p *plugin) cfg() *Config { return loadConfig() }
 // Handle 路由表。
 //
 // 方法清单（全部为本地静态分析，无 DB、无网络）：
-//   ping                 健康检查
-//   config/get|save      评审配置（规则开关/级别/阈值）
-//   rules/get|save       规则清单与开关
-//   review/sql           单段 SQL 评审
-//   batch/begin|add|run|get|file|export   目录批量评审
-//   audit/list|verify    评审记录（哈希链）
-//   mcp/tools|call       暴露给 AI 的只读工具
+//
+//	ping                 健康检查
+//	config/get|save      评审配置（规则开关/级别/阈值）
+//	rules/get|save       规则清单与开关
+//	review/sql           单段 SQL 评审
+//	batch/begin|add|run|get|file|export   目录批量评审
+//	audit/list|verify    评审记录（哈希链）
+//	mcp/tools|call       暴露给 AI 的只读工具
 func (p *plugin) Handle(
 	_ dbxpluginsdk.RequestContext,
 	method string,
@@ -146,11 +149,14 @@ func (p *plugin) Handle(
 			actor = cfg.Actor
 		}
 		appendAudit("review", file, res.Level, res.Score, len(res.Findings), actor)
+		note := "静态词法分析：未连接数据库，不执行被评审的 SQL。"
+		review := p.reviews.put(sqlText, file, note, res, opts)
 		return map[string]any{
+			"reviewId":   review.ID,
 			"result":     res,
-			"reviewedAt": nowRFC3339(),
+			"reviewedAt": review.ReviewedAt.Format(time.RFC3339),
 			"metrics":    res.Metrics,
-			"note":       "静态词法分析：未连接数据库，不执行被评审的 SQL。",
+			"note":       note,
 		}, nil
 
 	case "batch/begin":

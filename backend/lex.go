@@ -19,8 +19,13 @@ func isIdentChar(c byte) bool {
 		(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 0x80
 }
 
-// tokenize 跳过注释，保留字符串/反引号原样（去掉引号）。
+// tokenize 跳过注释，保留字符串/标识符原样（去掉引用符）。
 func tokenize(src string) []Token {
+	return tokenizeDialect(src, "")
+}
+
+// tokenizeDialect 在通用词法上补 T-SQL 的 [标识符] 与 #临时表。
+func tokenizeDialect(src string, dialect Dialect) []Token {
 	out := make([]Token, 0, len(src)/4)
 	i, line := 0, 1
 	for i < len(src) {
@@ -36,6 +41,14 @@ func tokenize(src string) []Token {
 			for i < len(src) && src[i] != '\n' {
 				i++
 			}
+		case c == '#' && dialect == DialectSQLServer && i+1 < len(src) && isIdentChar(src[i+1]):
+			start := i
+			i++
+			for i < len(src) && isIdentChar(src[i]) {
+				i++
+			}
+			text := src[start:i]
+			out = append(out, Token{Kind: "ident", Text: text, Upper: strings.ToUpper(text), Line: line})
 		case c == '#':
 			for i < len(src) && src[i] != '\n' {
 				i++
@@ -93,6 +106,28 @@ func tokenize(src string) []Token {
 			txt := strings.TrimSuffix(strings.TrimPrefix(src[start:i], "`"), "`")
 			txt = strings.ReplaceAll(txt, "``", "`")
 			out = append(out, Token{Kind: "ident", Text: txt, Upper: strings.ToUpper(txt), Line: line})
+		case c == '[' && dialect == DialectSQLServer:
+			startLine := line
+			i++
+			var text strings.Builder
+			for i < len(src) {
+				if src[i] == ']' {
+					if i+1 < len(src) && src[i+1] == ']' {
+						text.WriteByte(']')
+						i += 2
+						continue
+					}
+					i++
+					break
+				}
+				if src[i] == '\n' {
+					line++
+				}
+				text.WriteByte(src[i])
+				i++
+			}
+			value := text.String()
+			out = append(out, Token{Kind: "ident", Text: value, Upper: strings.ToUpper(value), Line: startLine})
 		case c == '@':
 			start := i
 			i++
@@ -168,6 +203,11 @@ type Statement struct {
 
 // splitStatements 支持 DELIMITER 指令、注释与字符串内的分号。
 func splitStatements(src string) []Statement {
+	return splitStatementsDialect(src, "")
+}
+
+// splitStatementsDialect 额外支持 SQL Server 的 GO 批分隔符。
+func splitStatementsDialect(src string, dialect Dialect) []Statement {
 	var out []Statement
 	delim := ";"
 	line := 1
@@ -232,6 +272,23 @@ func splitStatements(src string) []Statement {
 				startLine = line
 				bol = true
 				continue
+			}
+			if dialect == DialectSQLServer {
+				if eol, ok := sqlServerGoLine(src, j); ok {
+					flush(i)
+					i = eol
+					if i < len(src) && src[i] == '\r' {
+						i++
+					}
+					if i < len(src) && src[i] == '\n' {
+						i++
+						line++
+					}
+					start = i
+					startLine = line
+					bol = true
+					continue
+				}
 			}
 		}
 
@@ -303,6 +360,30 @@ func splitStatements(src string) []Statement {
 	}
 	flush(len(src))
 	return out
+}
+
+// sqlServerGoLine 识别独立成行（可带次数）的 GO；GO 不是 T-SQL 语句。
+func sqlServerGoLine(src string, start int) (int, bool) {
+	end := start
+	for end < len(src) && src[end] != '\n' && src[end] != '\r' {
+		end++
+	}
+	line := strings.TrimSpace(src[start:end])
+	if comment := strings.Index(line, "--"); comment >= 0 {
+		line = strings.TrimSpace(line[:comment])
+	}
+	fields := strings.Fields(line)
+	if len(fields) == 0 || len(fields) > 2 || !strings.EqualFold(fields[0], "GO") {
+		return end, false
+	}
+	if len(fields) == 2 {
+		for _, r := range fields[1] {
+			if r < '0' || r > '9' {
+				return end, false
+			}
+		}
+	}
+	return end, true
 }
 
 // trimLeadingComments 去掉语句前的注释行，返回清理后的文本与被去掉的行数。

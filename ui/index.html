@@ -244,6 +244,7 @@
                 <option value="">自动判定方言</option>
                 <option value="mysql">MySQL</option>
                 <option value="sqlite">SQLite</option>
+                <option value="sqlserver">SQL Server</option>
               </select>
             </label>
           </div>
@@ -283,6 +284,7 @@
                 <option value="">自动判定方言</option>
                 <option value="mysql">MySQL</option>
                 <option value="sqlite">SQLite</option>
+                <option value="sqlserver">SQL Server</option>
               </select>
             </label>
             <button class="primary" id="btnBatchRun" disabled>批量评审</button>
@@ -351,7 +353,7 @@
 <script>
   const $ = (id) => document.getElementById(id);
   const SEV_LABEL = { critical: "严重", high: "高", medium: "中", low: "低", info: "提示", pass: "通过" };
-  const DIALECT_LABEL = { mysql: "MySQL", sqlite: "SQLite", mixed: "MySQL + SQLite" };
+  const DIALECT_LABEL = { mysql: "MySQL", sqlite: "SQLite", sqlserver: "SQL Server", mixed: "多方言" };
 
   const state = { rules: [], config: null, batchId: null, report: null, files: [], ruleCat: "all" };
 
@@ -399,7 +401,7 @@
         migration: $("migration").checked,
         dialect: $("dialect").value,
       }, 60000);
-      renderResult(r.result);
+      renderResult(r.result, r.reviewId);
     } catch (e) {
       showErr("reviewErr", "评审失败：" + e.message);
     } finally {
@@ -414,7 +416,7 @@
     if (score >= 72) return "mid";
     return "low";
   }
-  function renderResult(res) {
+  function renderResult(res, reviewId) {
     const m = res.metrics || {};
     const out = [];
     out.push('<div class="metric">');
@@ -426,6 +428,7 @@
     out.push('<div class="box"><div class="num">' + esc(DIALECT_LABEL[res.dialect] || res.dialect) + '</div><div class="cap">方言</div></div>');
     out.push('</div>');
     if (m.verdict) out.push('<p style="margin:10px 0 0"><b>' + esc(m.verdict) + '</b></p>');
+    if (reviewId) out.push('<p class="hint">AI 续查 ID：<code>' + esc(reviewId) + '</code>（sidecar 内存缓存，重启后失效）</p>');
 
     if (m.dimensions && m.dimensions.length) {
       out.push('<div class="dims">');

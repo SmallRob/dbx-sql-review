@@ -29,29 +29,30 @@
 | 不碰凭据 | 不保存 host/账号/口令——配置里只有规则开关与阈值 |
 | 构建可复现 | SDK 随仓库自带，`GOPROXY=off` 也能编译出同样的二进制 |
 
-## 规则集（45 条）
+## 规则集（53 条）
 
 | 类别 | 条数 | 代表规则 |
 |---|--:|---|
-| 破坏性 | 8 | `SQL001` 删表/删库 · `SQL003` UPDATE/DELETE 无 WHERE · `SQL004` WHERE 恒真 |
-| 迁移规范 | 14 | `SQL010` 文件命名不规范 · `SQL014` 单文件语句过多 · `SQL016` DELIMITER 不配对 |
-| 性能 | 8 | `SQL022` SELECT * · `SQL023` 无谓词全表扫描 · `SQL024` 前导通配 LIKE |
-| 结构质量 | 11 | `SQL030` 建表缺主键 · `SQL032` 浮点存金额 · `SQL038` INSERT 未指定列清单 |
+| 破坏性 | 11 | `SQL001` 删表/删库 · `SQL003` UPDATE/DELETE 无 WHERE · `SQL073` 动态 EXEC |
+| 迁移规范 | 15 | `SQL010` 文件命名不规范 · `SQL014` 单文件语句过多 · `SQL070` SQL Server DDL 缺少守卫 |
+| 性能 | 10 | `SQL022` SELECT * · `SQL023` 无谓词全表扫描 · `SQL071` NOLOCK · `SQL072` TOP 无 ORDER BY |
+| 结构质量 | 13 | `SQL030` 建表缺主键 · `SQL032` 浮点存金额 · `SQL075` 非 Unicode 类型 · `SQL076` MAX 类型作键 |
 | 敏感数据 | 1 | `SQL040` 敏感列（password/token/身份证/手机/银行卡…） |
 | 目录一致性 | 3 | `SQL050` 版本重复 · `SQL051` 版本缺口 · `SQL052` 不同版本内容雷同 |
 
 ### 项目约定类规则默认关闭
 
 `SQL012`（DDL 幂等守卫）、`SQL018`（必须写 `USE`）、`SQL033`（列必须有 `COMMENT`）、
-`SQL034`（必须显式 `ENGINE`）——这些是**团队约定**，不是通用 SQL 质量问题。
+`SQL034`（必须显式 `ENGINE`）、`SQL070`（SQL Server DDL 幂等守卫）——这些是**团队约定**，不是通用 SQL 质量问题。
 通用插件不该拿自己的房规去衡量别人的仓库，所以它们默认关闭，
 在「规则」页按你的规范勾选即可。
 
 ### 方言
 
-支持 MySQL 与 SQLite，规则按方言自动分流：SQLite 没有 `ENGINE`/`CHARSET`/`USE`，
-`ALTER` 能力也弱得多，混用规则会大面积误报。方言可手动指定，也可按内容自动判定
-（文件名含 `sqlite` 或语法特征命中数决定）。
+支持 MySQL、SQLite 与 SQL Server/T-SQL，规则按方言自动分流。SQL Server 支持
+`GO`、方括号标识符、临时表、`TOP`、`IDENTITY` 与命名约束；新增 `SQL070`–`SQL077`，
+覆盖重放守卫、NOLOCK、TOP 无 ORDER BY、动态 EXEC、SELECT INTO、非 Unicode 类型、
+MAX 索引键与 MERGE 无 HOLDLOCK。三种方言均只做静态分析。
 
 ## 界面
 
@@ -61,6 +62,19 @@
 - **批量目录**——一次拖入多个脚本，做目录级评审与一致性校验，导出 Markdown；
 - **规则**——按类别查看全部规则，逐条开关与调级别；
 - **记录**——评审历史与哈希链校验。
+
+## 内置 AI / MCP 工具
+
+插件启用 `external_tools` 与 `ai_tools`，向 DBX 内置 Agent 和 MCP 客户端暴露
+4 个只读工具：
+
+- `sql_review`：评审 SQL，返回逐条发现和 `reviewId`；
+- `sql_review_result`：读取最近一次或指定评审，支持按严重级别、规则过滤与分页；
+- `sql_optimize`：返回结构化优化动作，供 Agent 生成可复核补丁（`changed=false`，不做未经证明的自动改写）；
+- `sql_rules`：列出规则目录，可按方言过滤。
+
+最近 32 次单条评审只缓存在 sidecar 内存中；结果读取不返回原始 SQL，原始 SQL
+也不落盘。所有工具继续保持不连接数据库、不发起网络请求、不执行 SQL 的边界。
 
 ## 报告口径
 

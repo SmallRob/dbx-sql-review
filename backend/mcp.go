@@ -4,6 +4,7 @@ package main
 import (
 	"encoding/json"
 	"strings"
+	"time"
 
 	dbxpluginsdk "github.com/t8y2/dbx/plugins/sdk/go/dbx-plugin-sdk"
 )
@@ -32,22 +33,48 @@ func propBool(desc string) map[string]any {
 	return map[string]any{"type": "boolean", "description": desc}
 }
 
+func propInt(desc string) map[string]any {
+	return map[string]any{"type": "integer", "description": desc}
+}
+
 func mcpTools() []mcpToolSpec {
 	return []mcpToolSpec{
 		{
 			Name: "sql_review", Access: "read", Title: "SQL 评审",
-			Description: "对一段 SQL 做静态规则评审：破坏性、迁移规范、性能、结构质量、敏感数据、一致性六类，返回逐条 finding（行号/片段/建议）、风险分与质量分。纯词法分析，不连接数据库，不执行被评审的 SQL。",
+			Description: "对 SQL 做静态规则评审，返回逐条 finding、风险分、质量分与 reviewId。支持 MySQL、SQLite、SQL Server/T-SQL；不连接数据库，不执行 SQL。评审后可调用 sql_review_result 或 sql_optimize。",
 			Schema: obj(map[string]any{
 				"sql":       propStr("待评审 SQL（DDL/DML 均可）"),
-				"file":      propStr("文件名，用于版本号解析，可省略"),
+				"file":      propStr("文件名，用于版本号解析与方言提示，可省略"),
 				"migration": propBool("按迁移脚本规则评审（命名/幂等类规则）"),
-				"dialect":   propStr("方言：mysql / sqlite；省略则按内容自动判定"),
+				"dialect":   propStr("方言：auto / mysql / sqlite / sqlserver；省略则自动判定"),
+			}, "sql"),
+		},
+		{
+			Name: "sql_review_result", Access: "read", Title: "评审结果读取",
+			Description: "读取最近一次或指定 reviewId 的评审结果，支持按严重级别、规则过滤和分页，供 AI Agent 解释问题或生成补丁；不返回原始 SQL。",
+			Schema: obj(map[string]any{
+				"reviewId": propStr("sql_review 返回的评审 ID；留空读取最近一次"),
+				"severity": propStr("严重级别过滤：critical / high / medium / low / info"),
+				"ruleId":   propStr("规则 ID 过滤，例如 SQL003、SQL070"),
+				"limit":    propInt("最多返回条数，默认 100，范围 1–500"),
+				"offset":   propInt("发现列表偏移量，默认 0"),
+			}),
+		},
+		{
+			Name: "sql_optimize", Access: "read", Title: "SQL 优化建议",
+			Description: "为 SQL 生成结构化优化建议与验证步骤，供 AI Agent 生成可复核补丁；changed=false，不做未经证明的自动改写，不连接数据库、不执行 SQL。",
+			Schema: obj(map[string]any{
+				"sql":     propStr("待优化 SQL"),
+				"file":    propStr("文件名，用于方言提示，可省略"),
+				"dialect": propStr("方言：auto / mysql / sqlite / sqlserver；省略则自动判定"),
 			}, "sql"),
 		},
 		{
 			Name: "sql_rules", Access: "read", Title: "规则清单",
-			Description: "返回全部规则的 id、类别、级别、说明与修复建议，以及当前阈值配置与启用状态。标记为「项目约定」的规则默认关闭，可由调用方显式开启。",
-			Schema:      obj(map[string]any{}),
+			Description: "返回规则的 id、类别、级别、说明、修复建议与适用方言，以及当前阈值配置与启用状态；可按方言过滤。",
+			Schema: obj(map[string]any{
+				"dialect": propStr("可选：mysql / sqlite / sqlserver；留空返回全部"),
+			}),
 		},
 	}
 }
@@ -152,15 +179,47 @@ func (p *plugin) handleMcpCall(values map[string]json.RawMessage) (any, *dbxplug
 func (p *plugin) dispatchTool(name string, args map[string]any) (any, *dbxpluginsdk.PluginError) {
 	getStr := func(k string) string {
 		if v, ok := args[k].(string); ok {
-			return v
+			return strings.TrimSpace(v)
 		}
 		return ""
+	}
+	getInt := func(k string, fallback int) int {
+		switch v := args[k].(type) {
+		case float64:
+			return int(v)
+		case int:
+			return v
+		default:
+			return fallback
+		}
 	}
 	switch name {
 	case "sql_rules":
 		c := p.cfg()
-		return map[string]any{"rules": Rules(c.Rules), "thresholds": c.Rules.Thresholds,
-			"config": c.Rules}, nil
+		filter := NormalizeDialect(getStr("dialect"))
+		if raw := getStr("dialect"); raw != "" && filter == "" {
+			return nil, dbxpluginsdk.NewError(-32602, "dialect 仅支持 mysql / sqlite / sqlserver")
+		}
+		all := Rules(c.Rules)
+		rules := make([]RuleMeta, 0, len(all))
+		for _, r := range all {
+			if filter != "" && len(r.Dialects) > 0 {
+				matched := false
+				for _, d := range r.Dialects {
+					if Dialect(d) == filter {
+						matched = true
+						break
+					}
+				}
+				if !matched {
+					continue
+				}
+			}
+			rules = append(rules, r)
+		}
+		return map[string]any{"version": pluginVersion, "total": len(rules), "rules": rules,
+			"thresholds": c.Rules.Thresholds, "config": c.Rules,
+			"dialects": []string{"mysql", "sqlite", "sqlserver"}}, nil
 
 	case "sql_review":
 		sqlText := getStr("sql")
@@ -174,12 +233,75 @@ func (p *plugin) dispatchTool(name string, args map[string]any) (any, *dbxplugin
 		}
 		migration, _ := args["migration"].(bool)
 		dialect := resolveDialect(NormalizeDialect(getStr("dialect")), sqlText, file)
-		res := AnalyzeSQL(sqlText, file, cfg.Rules, AnalyzeOptions{
-			Migration:     migration,
-			Dialect:       dialect,
-			NoUseRequired: true,
-		})
-		return map[string]any{"result": res}, nil
+		opts := AnalyzeOptions{Migration: migration, Dialect: dialect, NoUseRequired: true}
+		res := AnalyzeSQL(sqlText, file, cfg.Rules, opts)
+		appendAudit("review", file, res.Level, res.Score, len(res.Findings), "ai_tool")
+		note := "静态词法分析：未连接数据库，不执行被评审的 SQL。"
+		review := p.reviews.put(sqlText, file, note, res, opts)
+		return map[string]any{
+			"reviewId": review.ID, "result": res,
+			"reviewedAt": review.ReviewedAt.Format(time.RFC3339),
+			"metrics":    res.Metrics, "note": note,
+			"nextTools": []string{"sql_review_result", "sql_optimize"},
+		}, nil
+
+	case "sql_review_result":
+		r, ok := p.reviews.get(getStr("reviewId"))
+		if !ok {
+			return nil, dbxpluginsdk.NewError(-32602, "未找到评审结果；请先调用 sql_review，或传入有效 reviewId")
+		}
+		severity := strings.ToLower(getStr("severity"))
+		ruleID := strings.ToUpper(getStr("ruleId"))
+		all := make([]Finding, 0, len(r.Result.Findings))
+		for _, f := range r.Result.Findings {
+			if severity != "" && f.Severity != severity {
+				continue
+			}
+			if ruleID != "" && f.RuleID != ruleID {
+				continue
+			}
+			all = append(all, f)
+		}
+		limit := getInt("limit", 100)
+		if limit < 1 || limit > 500 {
+			limit = 100
+		}
+		offset := getInt("offset", 0)
+		if offset < 0 {
+			offset = 0
+		}
+		if offset > len(all) {
+			offset = len(all)
+		}
+		end := offset + limit
+		if end > len(all) {
+			end = len(all)
+		}
+		page := all[offset:end]
+		if page == nil {
+			page = []Finding{}
+		}
+		return map[string]any{
+			"reviewId": r.ID, "file": r.File, "reviewedAt": r.ReviewedAt.Format(time.RFC3339),
+			"dialect": r.Result.Dialect, "level": r.Result.Level, "score": r.Result.Score,
+			"counts": r.Result.Counts, "metrics": r.Result.Metrics,
+			"findings": page, "total": len(all), "offset": offset, "limit": limit,
+			"hasMore": end < len(all), "note": r.Note,
+		}, nil
+
+	case "sql_optimize":
+		sqlText := getStr("sql")
+		if strings.TrimSpace(sqlText) == "" {
+			return nil, dbxpluginsdk.NewError(-32602, "sql 为空")
+		}
+		file := getStr("file")
+		if file == "" {
+			file = "inline.sql"
+		}
+		cfg := p.cfg()
+		dialect := resolveDialect(NormalizeDialect(getStr("dialect")), sqlText, file)
+		opts := AnalyzeOptions{Dialect: dialect, NoUseRequired: true}
+		return optimizeSQL(sqlText, file, cfg.Rules, opts), nil
 	}
 	return nil, dbxpluginsdk.NewError(-32601, "unhandled tool: "+name)
 }

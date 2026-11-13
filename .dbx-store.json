@@ -4,10 +4,10 @@
   "icon": "assets/plugin.svg",
   "tags": ["sql", "review", "lint", "migration", "security"],
   "permissions": ["host.workbench"],
-  "source": "https://github.com/SmallRob/dbx-sql-review/tree/v0.1.0",
+  "source": "https://github.com/SmallRob/dbx-sql-review/tree/v0.1.24",
   "homepage": "https://github.com/SmallRob/dbx-sql-review",
   "license": "Apache-2.0",
-  "releaseNotes": "首个版本。45 条静态 SQL 规则，覆盖破坏性变更、迁移规范、性能、结构质量、敏感数据与目录一致性六类；支持单段 SQL 与整个迁移目录批量评审，输出逐条命中（行号/片段/建议）、风险分与六维质量画像，并可通过 MCP 暴露给 AI 客户端。全程不连接数据库、不执行被评审的 SQL。",
+  "releaseNotes": "新增 SQL Server/T-SQL 静态评审与 SQL070–077 八条规则，支持 GO、方括号标识符、临时表、TOP、IDENTITY 与命名约束；规则总数增至 53。内置 AI/MCP 工具扩展为 sql_review、sql_review_result、sql_optimize、sql_rules，支持评审结果续查与结构化优化建议。全程不连接数据库、不执行 SQL、不发起网络请求。",
   "localizations": {
     "zh-CN": {
       "name": "SQL 评审台",

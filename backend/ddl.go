@@ -82,8 +82,20 @@ func parseCreateTable(toks []Token) createTableInfo {
 				pk[n] = true
 			}
 			continue
-		case "UNIQUE", "KEY", "INDEX", "FULLTEXT", "SPATIAL", "CONSTRAINT", "FOREIGN", "CHECK":
-			if hu == "FOREIGN" || hu == "CONSTRAINT" || hu == "CHECK" {
+		case "CONSTRAINT":
+			// SQL Server 常写 CONSTRAINT pk_name PRIMARY KEY (id)。
+			for _, t := range s {
+				if t.Kind == "word" && t.Upper == "PRIMARY" {
+					info.HasPK = true
+					for _, n := range identList(s) {
+						pk[n] = true
+					}
+					break
+				}
+			}
+			continue
+		case "UNIQUE", "KEY", "INDEX", "FULLTEXT", "SPATIAL", "FOREIGN", "CHECK":
+			if hu == "FOREIGN" || hu == "CHECK" {
 				continue
 			}
 			for _, n := range identList(s) {
@@ -106,6 +118,8 @@ func parseCreateTable(toks []Token) createTableInfo {
 			case "PRIMARY":
 				c.IsPK = true
 				info.HasPK = true
+			case "UNIQUE":
+				c.Indexed = true
 			case "KEY":
 				if t.Kind == "word" {
 					c.Indexed = true

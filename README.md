@@ -32,31 +32,32 @@ has to read every script by hand.
 | No credentials | No host, account, or password is stored — the config holds rule switches and thresholds only |
 | Reproducible builds | The SDK ships inside the repository, so the same binary builds with `GOPROXY=off` |
 
-## Rule set (45 rules)
+## Rule set (53 rules)
 
 | Category | Count | Examples |
 |---|--:|---|
-| Destructive | 8 | `SQL001` DROP table/database · `SQL003` UPDATE/DELETE without WHERE · `SQL004` always-true WHERE |
-| Migration hygiene | 14 | `SQL010` bad file naming · `SQL014` too many statements per file · `SQL016` unbalanced DELIMITER |
-| Performance | 8 | `SQL022` `SELECT *` · `SQL023` unfiltered full scan · `SQL024` leading-wildcard LIKE |
-| Schema quality | 11 | `SQL030` table without primary key · `SQL032` float for money · `SQL038` INSERT without column list |
+| Destructive | 11 | `SQL001` DROP table/database · `SQL003` UPDATE/DELETE without WHERE · `SQL073` dynamic EXEC |
+| Migration hygiene | 15 | `SQL010` bad file naming · `SQL014` too many statements per file · `SQL070` unguarded SQL Server DDL |
+| Performance | 10 | `SQL022` `SELECT *` · `SQL023` unfiltered full scan · `SQL071` NOLOCK · `SQL072` TOP without ORDER BY |
+| Schema quality | 13 | `SQL030` table without primary key · `SQL032` float for money · `SQL075` non-Unicode types · `SQL076` MAX key |
 | Sensitive data | 1 | `SQL040` sensitive column names (password/token/id card/phone/bank card…) |
 | Directory consistency | 3 | `SQL050` duplicate version · `SQL051` version gap · `SQL052` identical content under different versions |
 
 ### Convention rules are off by default
 
 `SQL012` (idempotent DDL guard), `SQL018` (requires `USE`), `SQL033` (requires
-column `COMMENT`), `SQL034` (requires explicit `ENGINE`) are **team conventions**,
-not general SQL quality problems. A general-purpose plugin should not impose one
-repository's house rules on another, so they ship disabled — enable the ones your
-repository actually follows on the Rules tab.
+column `COMMENT`), `SQL034` (requires explicit `ENGINE`) and `SQL070` (SQL Server
+idempotent DDL guard) are **team conventions**, not general SQL quality problems.
+A general-purpose plugin should not impose one repository's house rules on another,
+so they ship disabled — enable the ones your repository actually follows on the Rules tab.
 
 ### Dialects
 
-MySQL and SQLite are supported, with rules routed per dialect: SQLite has no
-`ENGINE`/`CHARSET`/`USE` and a much weaker `ALTER`, so reusing MySQL rules there
-produces widespread false positives. Pick a dialect manually or let the plugin
-infer it from the filename and syntax features.
+MySQL, SQLite and SQL Server/T-SQL are supported, with rules routed per dialect.
+SQL Server support recognizes `GO`, bracketed identifiers, temporary tables, `TOP`,
+`IDENTITY` and named constraints. It adds `SQL070`–`SQL077`, covering replay guards,
+NOLOCK, TOP without ORDER BY, dynamic EXEC, SELECT INTO, non-Unicode types, MAX
+index keys and MERGE without HOLDLOCK. All three dialects remain purely static.
 
 ## Interface
 
@@ -68,6 +69,22 @@ Four tabs:
   export Markdown.
 - **Rules** — browse all rules by category; toggle and re-level each one.
 - **Records** — review history and hash-chain verification.
+
+## Built-in AI / MCP tools
+
+`external_tools` and `ai_tools` are enabled, exposing four read-only tools to DBX's
+built-in agent and MCP clients:
+
+- `sql_review` — review SQL and return findings plus a `reviewId`;
+- `sql_review_result` — retrieve the latest or selected review, with severity/rule
+  filters and pagination;
+- `sql_optimize` — return structured optimization actions for Agent-generated,
+  reviewable patches (`changed=false`; no unproven automatic rewrite);
+- `sql_rules` — list the rule catalog, optionally filtered by dialect.
+
+The last 32 single reviews are kept in sidecar memory only. The original SQL never
+enters the review-result response and is not written to disk. All tools preserve
+the no-database, no-network, no-SQL-execution guarantee.
 
 ## How the report reads
 

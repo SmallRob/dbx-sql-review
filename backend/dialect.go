@@ -6,14 +6,14 @@ import (
 	"strings"
 )
 
-// Dialect 是 SQL 方言。目前只区分 MySQL 与 SQLite：两者的 DDL 约定差得很远，
-// 同一套规则直接混用会大面积误报（SQLite 没有 ENGINE/CHARSET/COMMENT/USE，
-// ALTER 能力也弱得多）。
+// Dialect 是 SQL 方言。MySQL、SQLite 与 SQL Server 的 DDL 约定差得很远，
+// 同一套规则直接混用会大面积误报。三种方言在通用版中都只做静态分析。
 type Dialect string
 
 const (
-	DialectMySQL  Dialect = "mysql"
-	DialectSQLite Dialect = "sqlite"
+	DialectMySQL     Dialect = "mysql"
+	DialectSQLite    Dialect = "sqlite"
+	DialectSQLServer Dialect = "sqlserver"
 )
 
 // NormalizeDialect 把外部传入的字符串收敛成方言值；空串表示「自动判定」。
@@ -23,6 +23,8 @@ func NormalizeDialect(s string) Dialect {
 		return DialectSQLite
 	case "mysql", "mariadb":
 		return DialectMySQL
+	case "sqlserver", "sql-server", "sql_server", "mssql", "tsql", "t-sql":
+		return DialectSQLServer
 	}
 	return ""
 }
@@ -37,6 +39,18 @@ var (
 		regexp.MustCompile("`"),
 		regexp.MustCompile(`(?im)^\s*USE\s+\S`),
 	}
+	// SQL Server / T-SQL 特征：GO / TOP / IDENTITY / 方括号标识符 / NOLOCK 等。
+	sqlServerHints = []*regexp.Regexp{
+		regexp.MustCompile(`(?im)^\s*GO(?:\s+\d+)?\s*(?:--.*)?$`),
+		regexp.MustCompile(`(?i)\bTOP\s*(?:\(|\d)`),
+		regexp.MustCompile(`(?i)\bIDENTITY\s*\(`),
+		regexp.MustCompile(`(?i)\bN(?:VAR)?CHAR\s*\(`),
+		regexp.MustCompile(`(?i)\bDATETIME2\b`),
+		regexp.MustCompile(`(?i)\bNOLOCK\b`),
+		regexp.MustCompile(`(?i)\bSP_EXECUTESQL\b`),
+		regexp.MustCompile(`(?i)\bMERGE\s+INTO\b`),
+		regexp.MustCompile(`\[[A-Za-z_#@][^\]\r\n]*\]`),
+	}
 	// SQLite 特征：PRAGMA / AUTOINCREMENT / WITHOUT ROWID / strftime / ATTACH
 	sqliteHints = []*regexp.Regexp{
 		regexp.MustCompile(`(?im)^\s*PRAGMA\s+\w`),
@@ -50,12 +64,18 @@ var (
 )
 
 // DetectDialect 猜方言：特征计数多者胜；都判不出来按 MySQL（覆盖面更广）。
-// 文件名/目录名里带 sqlite 时优先判 SQLite。
+// 文件名/目录名可给出明确提示，例如 deploy/sqlite/sql/ 与 deploy/sqlserver/sql/。
 func DetectDialect(sql, file string) Dialect {
-	if strings.Contains(strings.ToLower(file), "sqlite") {
+	lowerFile := strings.ToLower(file)
+	if strings.Contains(lowerFile, "sqlite") {
 		return DialectSQLite
 	}
-	m, s := 0, 0
+	for _, hint := range []string{"sqlserver", "sql-server", "mssql", "tsql"} {
+		if strings.Contains(lowerFile, hint) {
+			return DialectSQLServer
+		}
+	}
+	m, s, q := 0, 0, 0
 	for _, re := range mysqlHints {
 		if re.MatchString(sql) {
 			m++
@@ -65,6 +85,14 @@ func DetectDialect(sql, file string) Dialect {
 		if re.MatchString(sql) {
 			s++
 		}
+	}
+	for _, re := range sqlServerHints {
+		if re.MatchString(sql) {
+			q++
+		}
+	}
+	if q > m && q >= s {
+		return DialectSQLServer
 	}
 	if s > m {
 		return DialectSQLite

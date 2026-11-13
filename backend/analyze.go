@@ -115,10 +115,17 @@ func AnalyzeSQL(sql, file string, cfg RuleConfig, opts AnalyzeOptions) *Result {
 	}
 	raw = strings.ReplaceAll(raw, "\r\n", "\n")
 	a.guarded = strings.Contains(strings.ToUpper(raw), "INFORMATION_SCHEMA")
+	if a.dialect == DialectSQLServer {
+		upper := strings.ToUpper(raw)
+		a.guarded = a.guarded || strings.Contains(upper, "OBJECT_ID") ||
+			strings.Contains(upper, "COL_LENGTH") || strings.Contains(upper, "SYS.OBJECTS") ||
+			strings.Contains(upper, "SYS.COLUMNS") || strings.Contains(upper, "IF EXISTS") ||
+			strings.Contains(upper, "IF NOT EXISTS")
+	}
 
-	stmts := splitStatements(raw)
+	stmts := splitStatementsDialect(raw, a.dialect)
 	for _, s := range stmts {
-		info := classify(s.Text, s.Line, s.Index)
+		info := classifyDialect(s.Text, s.Line, s.Index, a.dialect)
 		a.stmts = append(a.stmts, info)
 	}
 	a.checkFileLevel(raw)
@@ -377,10 +384,17 @@ func (a *analyzer) emitFileSummaries() {
 			map[string]any{"count": a.dynCount}, false)
 	}
 	if a.opts.Migration && !a.guarded && len(a.nonIdemLn) > 0 {
-		a.add("SQL012", 1, 0,
-			fmt.Sprintf("结构变更未使用幂等守卫（%d 处）", len(a.nonIdemLn)),
-			"使用 IF NOT EXISTS，或先查询系统目录再条件执行，保证脚本可重复执行。",
-			map[string]any{"lines": a.nonIdemLn}, false)
+		if a.dialect == DialectSQLServer {
+			a.add("SQL070", 1, 0,
+				fmt.Sprintf("结构变更缺少 OBJECT_ID/COL_LENGTH 等幂等守卫（%d 处）", len(a.nonIdemLn)),
+				"用 OBJECT_ID、COL_LENGTH、sys.objects/sys.columns 或 INFORMATION_SCHEMA 编写 IF 守卫，保证迁移可重放。",
+				map[string]any{"lines": a.nonIdemLn}, false)
+		} else {
+			a.add("SQL012", 1, 0,
+				fmt.Sprintf("结构变更未使用幂等守卫（%d 处）", len(a.nonIdemLn)),
+				"使用 IF NOT EXISTS，或先查询系统目录再条件执行，保证脚本可重复执行。",
+				map[string]any{"lines": a.nonIdemLn}, false)
+		}
 	}
 }
 
@@ -408,6 +422,9 @@ func (a *analyzer) checkStatement(s *stmtInfo) {
 	if a.dialect == DialectSQLite {
 		a.checkSQLiteStatement(s)
 	}
+	if a.dialect == DialectSQLServer {
+		a.checkSQLServerStatement(s)
+	}
 	switch s.Kind {
 	case "DROP":
 		switch s.Obj {
@@ -429,11 +446,17 @@ func (a *analyzer) checkStatement(s *stmtInfo) {
 			"改为 DELETE + WHERE 分批清理，或先备份到归档表。",
 			map[string]any{"tables": s.Tables}, s.Dynamic)
 	case "UPDATE", "DELETE":
+		batchAdvice := "补主键/唯一键条件；修数走分批脚本并带 LIMIT。"
+		joinAdvice := "回填脚本建议分批 + LIMIT，并在低峰执行；确认 JOIN 谓词能走索引。"
+		if a.dialect == DialectSQLServer {
+			batchAdvice = "补主键/唯一键条件；修数使用 TOP + 稳定 ORDER BY 分批。"
+			joinAdvice = "回填脚本建议使用 TOP 分批并在低峰执行；确认 JOIN 谓词能走索引。"
+		}
 		if !s.HasWhere {
 			if hasJoin(s.Tokens) {
 				a.addSev("SQL003", "medium", s.Line, s.Index,
 					fmt.Sprintf("%s 通过 JOIN 回填，没有独立 WHERE（只更新匹配行，但仍是全表扫描）", s.Kind),
-					"回填脚本建议分批 + LIMIT，并在低峰执行；确认 JOIN 谓词能走索引。",
+					joinAdvice,
 					map[string]any{"tables": s.Tables, "hasLimit": s.HasLimit}, s.Dynamic)
 			} else if s.Kind == "UPDATE" && isNullBackfill(s.Tokens) {
 				// 典型写法：迁移里先把 NULL 归一再 MODIFY NOT NULL。
@@ -446,7 +469,7 @@ func (a *analyzer) checkStatement(s *stmtInfo) {
 			} else {
 				a.add("SQL003", s.Line, s.Index,
 					fmt.Sprintf("%s 未带 WHERE，将作用于全表 %s", s.Kind, strings.Join(s.Tables, ", ")),
-					"补主键/唯一键条件；修数走分批脚本并带 LIMIT。",
+					batchAdvice,
 					map[string]any{"tables": s.Tables, "hasLimit": s.HasLimit}, s.Dynamic)
 			}
 		} else if s.AlwaysTru {
@@ -535,24 +558,37 @@ func hasGlobalSet(toks []Token) bool {
 	return false
 }
 
+var sqlServerTopStarRe = regexp.MustCompile(`(?is)^\s*SELECT\s+(?:DISTINCT\s+)?TOP\s*(?:\([^)]*\)|\d+)(?:\s+PERCENT)?(?:\s+WITH\s+TIES)?\s+(?:[\w$#]+|\[[^\]]+\])?\s*\.?\s*\*`)
+
 func (a *analyzer) checkSelect(s *stmtInfo) {
 	toks := s.Tokens
-	// SELECT *
+	// SELECT *（T-SQL 额外识别 SELECT TOP (n) *）。
+	starFound := false
 	for i := 0; i < len(toks) && i < 6; i++ {
 		if toks[i].Kind == "op" && toks[i].Text == "*" && i > 0 && toks[i-1].Upper == "SELECT" {
 			a.add("SQL022", s.Line, s.Index, "SELECT * 返回全部列",
 				"显式列出需要的列，避免破坏覆盖索引。", nil, s.Dynamic)
+			starFound = true
 			break
 		}
 		if i > 0 && toks[i-1].Upper == "DISTINCT" && toks[i].Kind == "op" && toks[i].Text == "*" {
 			a.add("SQL022", s.Line, s.Index, "SELECT DISTINCT * 返回全部列",
 				"显式列出需要的列。", nil, s.Dynamic)
+			starFound = true
 		}
 	}
+	if a.dialect == DialectSQLServer && !starFound && sqlServerTopStarRe.MatchString(s.Raw) {
+		a.add("SQL022", s.Line, s.Index, "SELECT TOP * 返回全部列",
+			"显式列出需要的列，避免破坏覆盖索引。", nil, s.Dynamic)
+	}
 	if len(s.Tables) > 0 && !s.HasWhere && !s.HasLimit {
-		a.add("SQL023", s.Line, s.Index,
-			"SELECT 缺少 WHERE/LIMIT，将扫描全表 "+strings.Join(s.Tables, ", "),
-			"补过滤条件；全量读取加 LIMIT 并说明用途。",
+		message := "SELECT 缺少 WHERE/LIMIT，将扫描全表 " + strings.Join(s.Tables, ", ")
+		advice := "补过滤条件；全量读取加 LIMIT 并说明用途。"
+		if a.dialect == DialectSQLServer {
+			message = "SELECT 缺少 WHERE/TOP，将扫描全表 " + strings.Join(s.Tables, ", ")
+			advice = "补过滤条件；全量读取使用 TOP + 稳定 ORDER BY 并说明用途。"
+		}
+		a.add("SQL023", s.Line, s.Index, message, advice,
 			map[string]any{"tables": s.Tables}, s.Dynamic)
 	}
 	a.checkLikeAndFunctions(s)
@@ -645,7 +681,7 @@ func (a *analyzer) checkAlter(s *stmtInfo) {
 		tbl = bareTable(s.Tables[0])
 	}
 
-	if a.opts.Migration && !a.guarded {
+	if a.dialect == DialectMySQL && a.opts.Migration && !a.guarded {
 		if strings.Contains(u, " ADD ") || strings.Contains(u, " MODIFY ") ||
 			strings.Contains(u, " CHANGE ") || strings.Contains(u, " DROP COLUMN ") {
 			a.nonIdemLn = append(a.nonIdemLn, s.Line)
@@ -928,6 +964,9 @@ func (a *analyzer) checkColumn(table string, c colDef, line, idx int, dynamic bo
 	if a.dialect == DialectSQLite {
 		a.checkSQLiteColumn(table, c, line, idx, dynamic)
 	}
+	if a.dialect == DialectSQLServer {
+		a.checkSQLServerColumn(table, c, line, idx, dynamic)
+	}
 	if isSensitiveColumnTyped(name, typ) {
 		a.add("SQL040", line, idx, fmt.Sprintf("敏感列 %s.%s", table, c.Name),
 			"确认以哈希/加密存储，日志与导出脱敏。",
@@ -1017,9 +1056,9 @@ func (a *analyzer) checkDynamic(raw string) {
 }
 
 func (a *analyzer) analyzeDynamicLiteral(sqlText string, line, parentIdx int) {
-	sub := splitStatements(sqlText)
+	sub := splitStatementsDialect(sqlText, a.dialect)
 	for _, st := range sub {
-		info := classify(st.Text, line, parentIdx)
+		info := classifyDialect(st.Text, line, parentIdx, a.dialect)
 		info.Dynamic = true
 		info.Parent = parentIdx
 		before := len(a.findings)
@@ -1035,7 +1074,11 @@ func (a *analyzer) analyzeDynamicLiteral(sqlText string, line, parentIdx int) {
 // ---------------------------------------------------------------- 分类与解析
 
 func classify(text string, line, idx int) stmtInfo {
-	toks := tokenize(text)
+	return classifyDialect(text, line, idx, "")
+}
+
+func classifyDialect(text string, line, idx int, dialect Dialect) stmtInfo {
+	toks := tokenizeDialect(text, dialect)
 	s := stmtInfo{Tokens: toks, Raw: text, Line: line, Index: idx, Kind: "OTHER"}
 	if len(toks) == 0 {
 		return s
@@ -1079,7 +1122,9 @@ func classify(text string, line, idx int) stmtInfo {
 		s.Kind = w
 	case "SET":
 		s.Kind = "SET"
-	case "PREPARE", "EXECUTE", "DEALLOCATE":
+	case "PREPARE", "EXEC", "EXECUTE", "DEALLOCATE":
+		s.Kind = w
+	case "MERGE":
 		s.Kind = w
 	case "GRANT", "REVOKE":
 		s.Kind = w
@@ -1093,6 +1138,9 @@ func classify(text string, line, idx int) stmtInfo {
 	s.Tables = collectTables(toks)
 	s.HasWhere = hasTopLevel(toks, "WHERE")
 	s.HasLimit = hasTopLevel(toks, "LIMIT")
+	if dialect == DialectSQLServer {
+		s.HasLimit = hasTopLevel(toks, "TOP") || hasTopLevel(toks, "FETCH")
+	}
 	if s.HasWhere {
 		s.AlwaysTru = alwaysTrueWhere(toks)
 	}

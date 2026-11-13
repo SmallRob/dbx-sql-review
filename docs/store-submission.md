@@ -20,9 +20,9 @@
 ## 2. 发布 Release
 
 ```bash
-git tag v0.1.0
+git tag v0.1.24
 git push origin main --tags
-# 然后在 GitHub 上创建 Release（tag 用 v0.1.0），触发 .github/workflows/plugin-release.yml
+# 然后在 GitHub 上创建 Release（tag 用 v0.1.24），触发 .github/workflows/plugin-release.yml
 ```
 
 CI（`t8y2/dbx/.github/workflows/plugin-release-reusable.yml@plugin-cli-v0.1.10`）会：
@@ -34,11 +34,11 @@ CI（`t8y2/dbx/.github/workflows/plugin-release-reusable.yml@plugin-cli-v0.1.10`
 发布后 Release 附件应包含：
 
 ```
-io.github.smallrob.sql-review-0.1.0-linux-x64.dbxp
-io.github.smallrob.sql-review-0.1.0-linux-arm64.dbxp
-io.github.smallrob.sql-review-0.1.0-windows-x64.dbxp
-io.github.smallrob.sql-review-0.1.0-darwin-x64.dbxp
-io.github.smallrob.sql-review-0.1.0-darwin-arm64.dbxp
+io.github.smallrob.sql-review-0.1.24-linux-x64.dbxp
+io.github.smallrob.sql-review-0.1.24-linux-arm64.dbxp
+io.github.smallrob.sql-review-0.1.24-windows-x64.dbxp
+io.github.smallrob.sql-review-0.1.24-darwin-x64.dbxp
+io.github.smallrob.sql-review-0.1.24-darwin-arm64.dbxp
 release-candidates.json
 ```
 
@@ -70,9 +70,9 @@ git clone https://github.com/t8y2/dbx-store.git
 cd dbx-store
 node scripts/sync-release-candidate.mjs \
   --repository smallrob/dbx-sql-review \
-  --tag v0.1.0 \
-  --release-candidates-url https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.0/release-candidates.json \
-  --metadata-url https://raw.githubusercontent.com/smallrob/dbx-sql-review/v0.1.0/.dbx-store.json \
+  --tag v0.1.24 \
+  --release-candidates-url https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.24/release-candidates.json \
+  --metadata-url https://raw.githubusercontent.com/smallrob/dbx-sql-review/v0.1.24/.dbx-store.json \
   --output candidates/io.github.smallrob.sql-review.json
 ```
 
@@ -88,16 +88,16 @@ permissions 为准**，所以 `.dbx-store.json` 里的 `permissions` 必须与
   "schemaVersion": 1,
   "id": "io.github.smallrob.sql-review",
   "publisher": "smallrob",
-  "version": "0.1.0",
+  "version": "0.1.24",
   "name": "SQL Review",
   "description": "静态 SQL 评审台：规则化检查破坏性变更、迁移规范、性能与结构质量，不连接数据库、不执行被评审的 SQL。",
-  "icon": "https://raw.githubusercontent.com/smallrob/dbx-sql-review/v0.1.0/assets/plugin.svg",
+  "icon": "https://raw.githubusercontent.com/smallrob/dbx-sql-review/v0.1.24/assets/plugin.svg",
   "tags": ["sql", "review", "lint", "migration", "security"],
   "permissions": ["host.workbench"],
-  "source": "https://github.com/SmallRob/dbx-sql-review/tree/v0.1.0",
+  "source": "https://github.com/SmallRob/dbx-sql-review/tree/v0.1.24",
   "homepage": "https://github.com/SmallRob/dbx-sql-review",
   "license": "Apache-2.0",
-  "releaseNotes": "首个版本。…",
+  "releaseNotes": "新增 SQL Server/T-SQL 静态评审与 8 条新规则，内置 AI/MCP 工具扩展为评审、结果读取、优化建议与规则清单。",
   "localizations": {
     "zh-CN": {
       "name": "SQL 评审台",
@@ -107,9 +107,9 @@ permissions 为准**，所以 `.dbx-store.json` 里的 `permissions` 必须与
   "targets": [
     {
       "target": "darwin-arm64",
-      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.0/io.github.smallrob.sql-review-0.1.0-darwin-arm64.dbxp",
+      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.24/io.github.smallrob.sql-review-0.1.24-darwin-arm64.dbxp",
       "sha256": "<64 位十六进制>",
-      "size": 2512740
+      "size": 2856861
     }
   ]
 }
@@ -131,13 +131,14 @@ PR 模板需要如实填写这几项：
 | 项 | 本插件的答案 |
 |---|---|
 | Plugin ID | `io.github.smallrob.sql-review` |
-| Version | `0.1.0` |
+| Version | `0.1.24` |
 | Publisher ID | `smallrob` |
-| 源码仓库与 tag | `https://github.com/SmallRob/dbx-sql-review` @ `v0.1.0` |
+| 源码仓库与 tag | `https://github.com/SmallRob/dbx-sql-review` @ `v0.1.24` |
 | 能力与用户流程 | 工作台 + 两个命令（全屏标签页 / 底部面板）+ 工具栏入口；评审单段 SQL 或整个迁移目录 |
 | 权限 | 仅 `host.workbench`（用于 `openWorkbench` / `closeWorkbench`） |
-| 数据访问 | 不访问数据库、不访问凭据；只读用户粘贴或拖入的 SQL 文本 |
+| 数据访问 | 不访问数据库、不访问凭据；只读用户提供的 SQL 文本与内存中的最近评审结果 |
 | 网络访问 | 无。sidecar 不发起任何网络请求 |
+| 内置 AI / MCP | 4 个只读工具：`sql_review`、`sql_review_result`、`sql_optimize`、`sql_rules` |
 | 原生 sidecar 行为 | 含 Go 编译的 sidecar 二进制；不监听端口、不起子进程；仅在插件数据目录写 `config.json`（0600）与 `audit.jsonl`（append-only 哈希链） |
 | License | Apache-2.0 |
 | 支持地址 | https://github.com/SmallRob/dbx-sql-review/issues |
@@ -168,7 +169,7 @@ CI 会校验候选文件，此时**保持红色是预期行为**——错误信�
 ### 「规则会不会误报到没法用？」
 
 团队约定类规则（`SQL012` 幂等守卫、`SQL018` 必须写 USE、`SQL033` 列注释、
-`SQL034` 显式引擎）**默认关闭**，只在用户按自己仓库的规范显式开启时才生效。
+`SQL034` 显式引擎、`SQL070` SQL Server DDL 守卫）**默认关闭**，只在用户按自己仓库的规范显式开启时才生效。
 其余规则是跨项目通用的 SQL 质量问题。
 
 ## 6. 版本更新

@@ -14,7 +14,7 @@ type RuleMeta struct {
 	DefaultSeverity string `json:"defaultSeverity"`
 	Help            string `json:"help"`
 	Advice          string `json:"advice"`
-	// Dialects 限定适用方言；nil = 两种方言都适用。
+	// Dialects 限定适用方言；nil = 所有方言都适用。
 	Dialects []string `json:"dialects,omitempty"`
 	// Optional 标记「项目约定类规则」：不是通用 SQL 质量问题，
 	// 而是某些团队自定的房规（例如要求列必须有 COMMENT）。
@@ -97,8 +97,8 @@ var ruleCatalog = []RuleMeta{
 		Help:   "同一目录内版本号重复会让版本管理工具直接失败。",
 		Advice: "同一版本只能有一个脚本；新脚本版本取当前最大版本 + 1。", DefaultSeverity: "high"},
 	{ID: "SQL012", Title: "非幂等 DDL", Category: catMigration,
-		Help:   "裸 ALTER TABLE ADD COLUMN 在重放时会因列已存在而报错。",
-		Advice: "使用 IF NOT EXISTS，或先查询系统目录再条件执行，保证脚本可重复执行。",
+		Help:            "裸 ALTER TABLE ADD COLUMN 在重放时会因列已存在而报错。",
+		Advice:          "使用 IF NOT EXISTS，或先查询系统目录再条件执行，保证脚本可重复执行。",
 		DefaultSeverity: "medium", Dialects: []string{"mysql"}, Optional: true},
 	{ID: "SQL013", Title: "多库 USE / 跨库引用", Category: catMigration,
 		Help:   "多库迁移时脚本开头的 USE 是正常写法；真正有问题的是脚本中途切到另一个库，或引用了声明目标库之外的对象。",
@@ -116,8 +116,8 @@ var ruleCatalog = []RuleMeta{
 		Help:   "BOM 或 CRLF 会影响校验和与部分客户端解析；文件末尾缺换行会让 diff 噪声增大。",
 		Advice: "统一 UTF-8 无 BOM + LF。", DefaultSeverity: "info"},
 	{ID: "SQL018", Title: "缺少库上下文声明（USE）", Category: catMigration,
-		Help:   "脚本没有以 USE <目标库>; 开头时，裸表名全部落到连接/客户端的默认库；换库执行或在 IDE 里手跑时极易作用到错误的库。",
-		Advice: "首行（注释之后）加 `USE <目标库>;`，或对每个对象写全限定名 `<库>.<table>`。",
+		Help:            "脚本没有以 USE <目标库>; 开头时，裸表名全部落到连接/客户端的默认库；换库执行或在 IDE 里手跑时极易作用到错误的库。",
+		Advice:          "首行（注释之后）加 `USE <目标库>;`，或对每个对象写全限定名 `<库>.<table>`。",
 		DefaultSeverity: "high", Dialects: []string{"mysql"}, Optional: true},
 
 	// ---- 性能
@@ -157,8 +157,8 @@ var ruleCatalog = []RuleMeta{
 		Help:   "FLOAT/DOUBLE 存在二进制舍入误差，不能用于金额/配额。",
 		Advice: "改用 DECIMAL(p,2) 或以最小货币单位的 BIGINT 存储。", DefaultSeverity: "medium"},
 	{ID: "SQL033", Title: "缺少 COMMENT", Category: catSchema,
-		Help:   "表与列缺少注释会让 ER 图与排障成本变高。",
-		Advice: "补 COMMENT，说明业务含义与取值范围。",
+		Help:            "表与列缺少注释会让 ER 图与排障成本变高。",
+		Advice:          "补 COMMENT，说明业务含义与取值范围。",
 		DefaultSeverity: "info", Dialects: []string{"mysql"}, Optional: true},
 	{ID: "SQL034", Title: "未显式指定引擎", Category: catSchema,
 		Help:   "依赖实例默认引擎会在异构环境（dev/sit/prod）产生差异。",
@@ -210,6 +210,40 @@ var ruleCatalog = []RuleMeta{
 		Help:            "ATTACH DATABASE 会引入第二个库文件，路径依赖运行目录，CI 与生产容易不一致。",
 		Advice:          "确认绝对路径与两端文件存在；跨库读写建议拆成两个迁移通道。",
 		DefaultSeverity: "low", Dialects: []string{"sqlite"}},
+
+	// ---- SQL Server / T-SQL 方言（纯静态评审，只在 dialect=sqlserver 时参与）
+	{ID: "SQL070", Title: "非幂等 DDL（SQL Server）", Category: catMigration,
+		Help:            "裸 CREATE/ALTER/DROP 在迁移重放时可能因对象已存在或不存在而失败。",
+		Advice:          "用 OBJECT_ID、COL_LENGTH、sys.objects/sys.columns 或 INFORMATION_SCHEMA 编写 IF 守卫；不要用 MySQL 的 PREPARE 写法。",
+		DefaultSeverity: "medium", Dialects: []string{"sqlserver"}, Optional: true},
+	{ID: "SQL071", Title: "NOLOCK / READ UNCOMMITTED", Category: catPerformance,
+		Help:            "NOLOCK 与 READ UNCOMMITTED 会读取未提交数据，并可能出现重复行、漏行或页级不一致。",
+		Advice:          "移除 NOLOCK；确实需要降低阻塞时评估 RCSI/快照隔离，并确认业务能接受的隔离语义。",
+		DefaultSeverity: "medium", Dialects: []string{"sqlserver"}},
+	{ID: "SQL072", Title: "TOP 缺少 ORDER BY", Category: catPerformance,
+		Help:            "TOP 没有 ORDER BY 时返回哪些行不确定，分批修数时尤其容易漏行或重复。",
+		Advice:          "为 TOP 补唯一且稳定的 ORDER BY（通常为主键）；分批处理时记录上一批边界。",
+		DefaultSeverity: "low", Dialects: []string{"sqlserver"}},
+	{ID: "SQL073", Title: "动态 SQL（EXEC）", Category: catDestructive,
+		Help:            "EXEC/EXECUTE/sp_executesql 拼接的语句无法在执行前完整静态确认。",
+		Advice:          "优先使用显式语句；必须动态执行时用 sp_executesql 参数化值，标识符用 QUOTENAME，并覆盖所有分支评审。",
+		DefaultSeverity: "medium", Dialects: []string{"sqlserver"}},
+	{ID: "SQL074", Title: "SELECT INTO 隐式建表写入", Category: catDestructive,
+		Help:            "SELECT INTO 会按查询结果隐式建表并批量写入，目标已存在时直接失败，且可能产生长事务。",
+		Advice:          "迁移中优先显式 CREATE TABLE + INSERT (列清单) SELECT，并分批；确认目标表不存在与锁/日志影响。",
+		DefaultSeverity: "medium", Dialects: []string{"sqlserver"}},
+	{ID: "SQL075", Title: "非 Unicode 字符类型", Category: catSchema,
+		Help:            "VARCHAR/CHAR/TEXT 依赖排序规则与代码页，跨环境存取中文或 emoji 可能出现转换问题。",
+		Advice:          "需要多语言文本时使用 NVARCHAR/NCHAR；新表避免已不推荐使用的 TEXT/NTEXT，改用 (N)VARCHAR(MAX)。",
+		DefaultSeverity: "info", Dialects: []string{"sqlserver"}},
+	{ID: "SQL076", Title: "MAX 类型用于主键/索引", Category: catSchema,
+		Help:            "(N)VARCHAR(MAX)/VARBINARY(MAX) 不能作为 SQL Server 索引键，主键或唯一约束会创建失败。",
+		Advice:          "键列改为有明确上限且满足索引键字节限制的类型；大文本仅作为包含列或单独存储。",
+		DefaultSeverity: "high", Dialects: []string{"sqlserver"}},
+	{ID: "SQL077", Title: "MERGE 缺少 HOLDLOCK", Category: catDestructive,
+		Help:            "并发下 MERGE 的匹配与插入之间可能出现竞态，造成唯一键冲突或重复数据。",
+		Advice:          "评估改用显式 UPDATE/INSERT；保留 MERGE 时使用 WITH (HOLDLOCK) 并验证唯一约束与并发行为。",
+		DefaultSeverity: "medium", Dialects: []string{"sqlserver"}},
 
 	// ---- 一致性（不连库也能判定的部分）
 	{ID: "SQL050", Title: "目录内版本重复", Category: catConsistency,
