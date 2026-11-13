@@ -84,7 +84,7 @@
     {
       "type": "mcp",
       "id": "io.github.smallrob.sql-review.mcp",
-      "description": "把只读的静态 SQL 评审、结果读取、优化建议与规则清单暴露给 MCP 客户端和内置 AI。四个工具全部为 read，不连接数据库、不执行被评审的 SQL。",
+      "description": "把只读的静态 SQL 评审、结果读取、优化建议与规则清单暴露给 MCP 客户端和内置 AI。四个工具全部为 read，支持 MySQL、SQLite、SQL Server 与 PostgreSQL，不连接数据库、不执行被评审的 SQL。",
       "external_tools": true,
       "ai_tools": true,
       "toolsets": [

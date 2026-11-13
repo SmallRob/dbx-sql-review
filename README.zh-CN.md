@@ -29,30 +29,33 @@
 | 不碰凭据 | 不保存 host/账号/口令——配置里只有规则开关与阈值 |
 | 构建可复现 | SDK 随仓库自带，`GOPROXY=off` 也能编译出同样的二进制 |
 
-## 规则集（53 条）
+## 规则集（61 条）
 
 | 类别 | 条数 | 代表规则 |
 |---|--:|---|
-| 破坏性 | 11 | `SQL001` 删表/删库 · `SQL003` UPDATE/DELETE 无 WHERE · `SQL073` 动态 EXEC |
-| 迁移规范 | 15 | `SQL010` 文件命名不规范 · `SQL014` 单文件语句过多 · `SQL070` SQL Server DDL 缺少守卫 |
-| 性能 | 10 | `SQL022` SELECT * · `SQL023` 无谓词全表扫描 · `SQL071` NOLOCK · `SQL072` TOP 无 ORDER BY |
-| 结构质量 | 13 | `SQL030` 建表缺主键 · `SQL032` 浮点存金额 · `SQL075` 非 Unicode 类型 · `SQL076` MAX 类型作键 |
+| 破坏性 | 12 | `SQL001` 删表/删库 · `SQL003` UPDATE/DELETE 无 WHERE · `SQL073` 动态 EXEC · `SQL087` CASCADE |
+| 迁移规范 | 17 | `SQL010` 文件命名不规范 · `SQL014` 单文件语句过多 · `SQL070` SQL Server DDL 缺少守卫 · `SQL080` PostgreSQL DDL 缺少守卫 |
+| 性能 | 12 | `SQL022` SELECT * · `SQL023` 无谓词全表扫描 · `SQL071` NOLOCK · `SQL081` 索引未用 CONCURRENTLY |
+| 结构质量 | 16 | `SQL030` 建表缺主键 · `SQL032` 浮点存金额 · `SQL075` 非 Unicode 类型 · `SQL084` SERIAL · `SQL085` JSON 未用 JSONB |
 | 敏感数据 | 1 | `SQL040` 敏感列（password/token/身份证/手机/银行卡…） |
 | 目录一致性 | 3 | `SQL050` 版本重复 · `SQL051` 版本缺口 · `SQL052` 不同版本内容雷同 |
 
 ### 项目约定类规则默认关闭
 
 `SQL012`（DDL 幂等守卫）、`SQL018`（必须写 `USE`）、`SQL033`（列必须有 `COMMENT`）、
-`SQL034`（必须显式 `ENGINE`）、`SQL070`（SQL Server DDL 幂等守卫）——这些是**团队约定**，不是通用 SQL 质量问题。
+`SQL034`（必须显式 `ENGINE`）、`SQL070`（SQL Server DDL 幂等守卫）、
+`SQL080`（PostgreSQL DDL 幂等守卫）——这些是**团队约定**，不是通用 SQL 质量问题。
 通用插件不该拿自己的房规去衡量别人的仓库，所以它们默认关闭，
 在「规则」页按你的规范勾选即可。
 
 ### 方言
 
-支持 MySQL、SQLite 与 SQL Server/T-SQL，规则按方言自动分流。SQL Server 支持
-`GO`、方括号标识符、临时表、`TOP`、`IDENTITY` 与命名约束；新增 `SQL070`–`SQL077`，
-覆盖重放守卫、NOLOCK、TOP 无 ORDER BY、动态 EXEC、SELECT INTO、非 Unicode 类型、
-MAX 索引键与 MERGE 无 HOLDLOCK。三种方言均只做静态分析。
+支持 MySQL、SQLite、SQL Server/T-SQL 与 PostgreSQL，规则按方言自动分流。SQL Server 支持
+`GO`、方括号标识符、临时表、`TOP`、`IDENTITY` 与命名约束（`SQL070`–`SQL077`）。
+PostgreSQL 支持美元引号函数体、`::` 强转、`ON CONFLICT`、`RETURNING`、`JSONB`、
+IDENTITY 与时区类型（`SQL080`–`SQL087`），覆盖 DDL 重放守卫、`CONCURRENTLY`、
+改列类型重写、`SET NOT NULL`、`SERIAL`、`JSON`、无时区时间和 `CASCADE`。
+四种方言均只做静态分析。
 
 ## 界面
 
@@ -115,7 +118,9 @@ cd backend && go build ./... && go test ./...
 - **只是评审台，不是守门人。** DBX 没有执行前钩子，本插件不能阻止语句执行；
   它让问题在提交前浮现，而不是在执行时拦截。
 - **词法级，不是语法树。** 动态拼接的标识符（`CONCAT('t_', @suffix)`）无法还原；
-  这类语句会被标记为「动态」，只分析其中的字面量分支。
+  这类语句会被标记为「动态」，只分析其中的字面量分支。PostgreSQL 美元引号中的
+  `DO`/`CREATE FUNCTION` 函数体保持不透明：外层脚本会评审，但函数体内的
+  PL/pgSQL 语句不做静态审计。
 - **拿不到真实行数。** 因为不连库，无法判断某张表到底多大。
   `SQL020`/`SQL021` 因此对所有结构性 ALTER 提示，而不是「仅当大表才报」——
   这是刻意的取舍：宁可多提示一条，也不给一个基于猜测的结论。

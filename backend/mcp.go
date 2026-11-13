@@ -41,12 +41,12 @@ func mcpTools() []mcpToolSpec {
 	return []mcpToolSpec{
 		{
 			Name: "sql_review", Access: "read", Title: "SQL 评审",
-			Description: "对 SQL 做静态规则评审，返回逐条 finding、风险分、质量分与 reviewId。支持 MySQL、SQLite、SQL Server/T-SQL；不连接数据库，不执行 SQL。评审后可调用 sql_review_result 或 sql_optimize。",
+			Description: "对 SQL 做静态规则评审，返回逐条 finding、风险分、质量分与 reviewId。支持 MySQL、SQLite、SQL Server/T-SQL、PostgreSQL；不连接数据库，不执行 SQL。评审后可调用 sql_review_result 或 sql_optimize。",
 			Schema: obj(map[string]any{
 				"sql":       propStr("待评审 SQL（DDL/DML 均可）"),
 				"file":      propStr("文件名，用于版本号解析与方言提示，可省略"),
 				"migration": propBool("按迁移脚本规则评审（命名/幂等类规则）"),
-				"dialect":   propStr("方言：auto / mysql / sqlite / sqlserver；省略则自动判定"),
+				"dialect":   propStr("方言：auto / mysql / sqlite / sqlserver / postgres；省略则自动判定"),
 			}, "sql"),
 		},
 		{
@@ -55,7 +55,7 @@ func mcpTools() []mcpToolSpec {
 			Schema: obj(map[string]any{
 				"reviewId": propStr("sql_review 返回的评审 ID；留空读取最近一次"),
 				"severity": propStr("严重级别过滤：critical / high / medium / low / info"),
-				"ruleId":   propStr("规则 ID 过滤，例如 SQL003、SQL070"),
+				"ruleId":   propStr("规则 ID 过滤，例如 SQL003、SQL070、SQL081"),
 				"limit":    propInt("最多返回条数，默认 100，范围 1–500"),
 				"offset":   propInt("发现列表偏移量，默认 0"),
 			}),
@@ -66,14 +66,14 @@ func mcpTools() []mcpToolSpec {
 			Schema: obj(map[string]any{
 				"sql":     propStr("待优化 SQL"),
 				"file":    propStr("文件名，用于方言提示，可省略"),
-				"dialect": propStr("方言：auto / mysql / sqlite / sqlserver；省略则自动判定"),
+				"dialect": propStr("方言：auto / mysql / sqlite / sqlserver / postgres；省略则自动判定"),
 			}, "sql"),
 		},
 		{
 			Name: "sql_rules", Access: "read", Title: "规则清单",
 			Description: "返回规则的 id、类别、级别、说明、修复建议与适用方言，以及当前阈值配置与启用状态；可按方言过滤。",
 			Schema: obj(map[string]any{
-				"dialect": propStr("可选：mysql / sqlite / sqlserver；留空返回全部"),
+				"dialect": propStr("可选：mysql / sqlite / sqlserver / postgres；留空返回全部"),
 			}),
 		},
 	}
@@ -198,7 +198,7 @@ func (p *plugin) dispatchTool(name string, args map[string]any) (any, *dbxplugin
 		c := p.cfg()
 		filter := NormalizeDialect(getStr("dialect"))
 		if raw := getStr("dialect"); raw != "" && filter == "" {
-			return nil, dbxpluginsdk.NewError(-32602, "dialect 仅支持 mysql / sqlite / sqlserver")
+			return nil, dbxpluginsdk.NewError(-32602, "dialect 仅支持 mysql / sqlite / sqlserver / postgres")
 		}
 		all := Rules(c.Rules)
 		rules := make([]RuleMeta, 0, len(all))
@@ -219,7 +219,7 @@ func (p *plugin) dispatchTool(name string, args map[string]any) (any, *dbxplugin
 		}
 		return map[string]any{"version": pluginVersion, "total": len(rules), "rules": rules,
 			"thresholds": c.Rules.Thresholds, "config": c.Rules,
-			"dialects": []string{"mysql", "sqlite", "sqlserver"}}, nil
+			"dialects": []string{"mysql", "sqlite", "sqlserver", "postgres"}}, nil
 
 	case "sql_review":
 		sqlText := getStr("sql")

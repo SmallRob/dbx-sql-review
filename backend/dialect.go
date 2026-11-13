@@ -6,14 +6,15 @@ import (
 	"strings"
 )
 
-// Dialect 是 SQL 方言。MySQL、SQLite 与 SQL Server 的 DDL 约定差得很远，
-// 同一套规则直接混用会大面积误报。三种方言在通用版中都只做静态分析。
+// Dialect 是 SQL 方言。MySQL、SQLite、SQL Server 与 PostgreSQL 的 DDL 约定
+// 差得很远，同一套规则直接混用会大面积误报。所有方言都只做静态分析。
 type Dialect string
 
 const (
-	DialectMySQL     Dialect = "mysql"
-	DialectSQLite    Dialect = "sqlite"
-	DialectSQLServer Dialect = "sqlserver"
+	DialectMySQL      Dialect = "mysql"
+	DialectSQLite     Dialect = "sqlite"
+	DialectSQLServer  Dialect = "sqlserver"
+	DialectPostgreSQL Dialect = "postgres"
 )
 
 // NormalizeDialect 把外部传入的字符串收敛成方言值；空串表示「自动判定」。
@@ -25,6 +26,8 @@ func NormalizeDialect(s string) Dialect {
 		return DialectMySQL
 	case "sqlserver", "sql-server", "sql_server", "mssql", "tsql", "t-sql":
 		return DialectSQLServer
+	case "postgres", "postgresql", "pgsql", "pg":
+		return DialectPostgreSQL
 	}
 	return ""
 }
@@ -61,10 +64,25 @@ var (
 		regexp.MustCompile(`(?i)\bjson_extract\s*\(`),
 		regexp.MustCompile(`(?i)\bINSERT\s+OR\s+(REPLACE|IGNORE|ABORT|FAIL|ROLLBACK)\b`),
 	}
+	// PostgreSQL 特征：美元引号 / :: 强转 / JSONB / ILIKE / ON CONFLICT / RETURNING 等。
+	postgresHints = []*regexp.Regexp{
+		regexp.MustCompile(`\$[A-Za-z_0-9]*\$`),
+		regexp.MustCompile(`(?i)\bBIGSERIAL\b|\bSMALLSERIAL\b|\bSERIAL[248]?\b`),
+		regexp.MustCompile(`(?i)\bJSONB\b`),
+		regexp.MustCompile(`(?i)\bILIKE\b`),
+		regexp.MustCompile(`(?i)\bON\s+CONFLICT\b`),
+		regexp.MustCompile(`(?i)\bRETURNING\b`),
+		regexp.MustCompile(`(?i)\bDISTINCT\s+ON\b`),
+		regexp.MustCompile(`(?i)\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:FUNCTION|PROCEDURE|TRIGGER)\b`),
+		regexp.MustCompile(`(?i)\bGENERATED\s+(?:ALWAYS|BY\s+DEFAULT)\s+AS\s+IDENTITY\b`),
+		regexp.MustCompile(`(?i)\bTIMESTAMPTZ\b|\bTIMETZ\b|\bTO_REGCLASS\b`),
+		regexp.MustCompile(`::`),
+	}
 )
 
 // DetectDialect 猜方言：特征计数多者胜；都判不出来按 MySQL（覆盖面更广）。
-// 文件名/目录名可给出明确提示，例如 deploy/sqlite/sql/ 与 deploy/sqlserver/sql/。
+// 文件名/目录名可给出明确提示，例如 deploy/sqlite/sql/、deploy/sqlserver/sql/
+// 与 migrations/postgres/。
 func DetectDialect(sql, file string) Dialect {
 	lowerFile := strings.ToLower(file)
 	if strings.Contains(lowerFile, "sqlite") {
@@ -75,7 +93,12 @@ func DetectDialect(sql, file string) Dialect {
 			return DialectSQLServer
 		}
 	}
-	m, s, q := 0, 0, 0
+	for _, hint := range []string{"postgres", "postgresql", "pgsql"} {
+		if strings.Contains(lowerFile, hint) {
+			return DialectPostgreSQL
+		}
+	}
+	m, s, q, p := 0, 0, 0, 0
 	for _, re := range mysqlHints {
 		if re.MatchString(sql) {
 			m++
@@ -91,10 +114,22 @@ func DetectDialect(sql, file string) Dialect {
 			q++
 		}
 	}
-	if q > m && q >= s {
+	for _, re := range postgresHints {
+		if re.MatchString(sql) {
+			p++
+		}
+	}
+	// 四种特征同时为零时保持历史默认 MySQL。
+	if m == 0 && s == 0 && q == 0 && p == 0 {
+		return DialectMySQL
+	}
+	if p > 0 && p >= q && p >= s && p >= m {
+		return DialectPostgreSQL
+	}
+	if q > 0 && q >= s && q >= p && q >= m {
 		return DialectSQLServer
 	}
-	if s > m {
+	if s > 0 && s >= m && s >= p && s >= q {
 		return DialectSQLite
 	}
 	return DialectMySQL

@@ -383,13 +383,19 @@ func (a *analyzer) emitFileSummaries() {
 			"确认拼接变量的取值分支都可重放；必要时拆成显式 DDL。",
 			map[string]any{"count": a.dynCount}, false)
 	}
-	if a.opts.Migration && !a.guarded && len(a.nonIdemLn) > 0 {
-		if a.dialect == DialectSQLServer {
+	if a.opts.Migration && len(a.nonIdemLn) > 0 && (a.dialect == DialectPostgreSQL || !a.guarded) {
+		switch a.dialect {
+		case DialectPostgreSQL:
+			a.add("SQL080", 1, 0,
+				fmt.Sprintf("结构变更缺少幂等守卫（%d 处）", len(a.nonIdemLn)),
+				"CREATE 使用 IF NOT EXISTS，DROP 使用 IF EXISTS；复杂变更用 to_regclass()/pg_catalog 或 DO 块前置判断。",
+				map[string]any{"lines": a.nonIdemLn}, false)
+		case DialectSQLServer:
 			a.add("SQL070", 1, 0,
 				fmt.Sprintf("结构变更缺少 OBJECT_ID/COL_LENGTH 等幂等守卫（%d 处）", len(a.nonIdemLn)),
 				"用 OBJECT_ID、COL_LENGTH、sys.objects/sys.columns 或 INFORMATION_SCHEMA 编写 IF 守卫，保证迁移可重放。",
 				map[string]any{"lines": a.nonIdemLn}, false)
-		} else {
+		default:
 			a.add("SQL012", 1, 0,
 				fmt.Sprintf("结构变更未使用幂等守卫（%d 处）", len(a.nonIdemLn)),
 				"使用 IF NOT EXISTS，或先查询系统目录再条件执行，保证脚本可重复执行。",
@@ -424,6 +430,9 @@ func (a *analyzer) checkStatement(s *stmtInfo) {
 	}
 	if a.dialect == DialectSQLServer {
 		a.checkSQLServerStatement(s)
+	}
+	if a.dialect == DialectPostgreSQL {
+		a.checkPostgresStatement(s)
 	}
 	switch s.Kind {
 	case "DROP":
@@ -598,7 +607,7 @@ func (a *analyzer) checkLikeAndFunctions(s *stmtInfo) {
 	toks := s.Tokens
 	for i := 0; i < len(toks); i++ {
 		t := toks[i]
-		if t.Kind == "word" && t.Upper == "LIKE" && i+1 < len(toks) && toks[i+1].Kind == "str" {
+		if t.Kind == "word" && (t.Upper == "LIKE" || t.Upper == "ILIKE") && i+1 < len(toks) && toks[i+1].Kind == "str" {
 			v := toks[i+1].Text
 			if strings.HasPrefix(v, "%") {
 				a.add("SQL024", s.Line, s.Index, fmt.Sprintf("LIKE '%s' 前导通配", truncStr(v, 24)),
@@ -967,12 +976,16 @@ func (a *analyzer) checkColumn(table string, c colDef, line, idx int, dynamic bo
 	if a.dialect == DialectSQLServer {
 		a.checkSQLServerColumn(table, c, line, idx, dynamic)
 	}
+	if a.dialect == DialectPostgreSQL {
+		a.checkPostgresColumn(table, c, line, idx, dynamic)
+	}
 	if isSensitiveColumnTyped(name, typ) {
 		a.add("SQL040", line, idx, fmt.Sprintf("敏感列 %s.%s", table, c.Name),
 			"确认以哈希/加密存储，日志与导出脱敏。",
 			map[string]any{"table": table, "column": c.Name, "type": c.Type}, dynamic)
 	}
-	if strings.HasPrefix(typ, "FLOAT") || strings.HasPrefix(typ, "DOUBLE") || strings.HasPrefix(typ, "REAL") {
+	if (strings.HasPrefix(typ, "FLOAT") || strings.HasPrefix(typ, "DOUBLE") || strings.HasPrefix(typ, "REAL")) &&
+		(a.dialect != DialectPostgreSQL || pgMoneyColumn(name)) {
 		a.add("SQL032", line, idx, fmt.Sprintf("%s.%s 使用浮点类型 %s", table, c.Name, c.Type),
 			"金额/配额改用 DECIMAL(p,2) 或 BIGINT 最小单位。",
 			map[string]any{"table": table, "column": c.Name, "type": c.Type}, dynamic)

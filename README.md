@@ -32,32 +32,35 @@ has to read every script by hand.
 | No credentials | No host, account, or password is stored — the config holds rule switches and thresholds only |
 | Reproducible builds | The SDK ships inside the repository, so the same binary builds with `GOPROXY=off` |
 
-## Rule set (53 rules)
+## Rule set (61 rules)
 
 | Category | Count | Examples |
 |---|--:|---|
-| Destructive | 11 | `SQL001` DROP table/database · `SQL003` UPDATE/DELETE without WHERE · `SQL073` dynamic EXEC |
-| Migration hygiene | 15 | `SQL010` bad file naming · `SQL014` too many statements per file · `SQL070` unguarded SQL Server DDL |
-| Performance | 10 | `SQL022` `SELECT *` · `SQL023` unfiltered full scan · `SQL071` NOLOCK · `SQL072` TOP without ORDER BY |
-| Schema quality | 13 | `SQL030` table without primary key · `SQL032` float for money · `SQL075` non-Unicode types · `SQL076` MAX key |
+| Destructive | 12 | `SQL001` DROP table/database · `SQL003` UPDATE/DELETE without WHERE · `SQL073` dynamic EXEC · `SQL087` CASCADE |
+| Migration hygiene | 17 | `SQL010` bad file naming · `SQL014` too many statements per file · `SQL070` unguarded SQL Server DDL · `SQL080` unguarded PostgreSQL DDL |
+| Performance | 12 | `SQL022` `SELECT *` · `SQL023` unfiltered full scan · `SQL071` NOLOCK · `SQL081` index without CONCURRENTLY |
+| Schema quality | 16 | `SQL030` table without primary key · `SQL032` float for money · `SQL075` non-Unicode types · `SQL084` SERIAL · `SQL085` JSON instead of JSONB |
 | Sensitive data | 1 | `SQL040` sensitive column names (password/token/id card/phone/bank card…) |
 | Directory consistency | 3 | `SQL050` duplicate version · `SQL051` version gap · `SQL052` identical content under different versions |
 
 ### Convention rules are off by default
 
 `SQL012` (idempotent DDL guard), `SQL018` (requires `USE`), `SQL033` (requires
-column `COMMENT`), `SQL034` (requires explicit `ENGINE`) and `SQL070` (SQL Server
-idempotent DDL guard) are **team conventions**, not general SQL quality problems.
-A general-purpose plugin should not impose one repository's house rules on another,
-so they ship disabled — enable the ones your repository actually follows on the Rules tab.
+column `COMMENT`), `SQL034` (requires explicit `ENGINE`), `SQL070` (SQL Server
+idempotent DDL guard) and `SQL080` (PostgreSQL idempotent DDL guard) are **team
+conventions**, not general SQL quality problems. A general-purpose plugin should not
+impose one repository's house rules on another, so they ship disabled — enable the
+ones your repository actually follows on the Rules tab.
 
 ### Dialects
 
-MySQL, SQLite and SQL Server/T-SQL are supported, with rules routed per dialect.
-SQL Server support recognizes `GO`, bracketed identifiers, temporary tables, `TOP`,
-`IDENTITY` and named constraints. It adds `SQL070`–`SQL077`, covering replay guards,
-NOLOCK, TOP without ORDER BY, dynamic EXEC, SELECT INTO, non-Unicode types, MAX
-index keys and MERGE without HOLDLOCK. All three dialects remain purely static.
+MySQL, SQLite, SQL Server/T-SQL and PostgreSQL are supported, with rules routed per
+dialect. SQL Server support recognizes `GO`, bracketed identifiers, temporary tables,
+`TOP`, `IDENTITY` and named constraints (`SQL070`–`SQL077`). PostgreSQL support
+recognizes dollar-quoted function bodies, `::` casts, `ON CONFLICT`, `RETURNING`,
+`JSONB`, identity columns and timezone-aware types (`SQL080`–`SQL087`), covering DDL
+replay guards, `CONCURRENTLY`, column type rewrites, `SET NOT NULL`, `SERIAL`, `JSON`,
+timezone-less timestamps and `CASCADE`. All four dialects remain purely static.
 
 ## Interface
 
@@ -132,7 +135,9 @@ See [docs/store-submission.md](docs/store-submission.md).
   blocking them at execution time.
 - **Lexical, not a syntax tree.** Dynamically built identifiers
   (`CONCAT('t_', @suffix)`) cannot be reconstructed; such statements are marked
-  dynamic and only their literal branches are analyzed.
+  dynamic and only their literal branches are analyzed. PostgreSQL `DO` and
+  `CREATE FUNCTION` bodies inside dollar quotes are kept opaque: the outer script
+  is reviewed, but PL/pgSQL statements inside the body are not audited.
 - **No real row counts.** Because nothing is connected, the plugin cannot know how
   large a table is. `SQL020`/`SQL021` therefore flag every structural ALTER rather
   than only "large table" ones — a deliberate trade: an extra prompt beats a

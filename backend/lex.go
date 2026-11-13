@@ -64,6 +64,30 @@ func tokenizeDialect(src string, dialect Dialect) []Token {
 			if i < len(src) {
 				i += 2
 			}
+		case c == '$' && dialect == DialectPostgreSQL:
+			if tag, bodyStart, ok := pgDollarQuoteTag(src, i); ok {
+				startLine := line
+				end := len(src)
+				if idx := strings.Index(src[bodyStart:], tag); idx >= 0 {
+					end = bodyStart + idx + len(tag)
+				}
+				line += strings.Count(src[i:end], "\n")
+				// 函数体/DO 块整体视为字符串，不把内部关键字当外层语句分析。
+				out = append(out, Token{Kind: "str", Text: "", Line: startLine})
+				i = end
+				continue
+			}
+			if i+1 < len(src) && isDigit(src[i+1]) {
+				start := i
+				i++
+				for i < len(src) && isDigit(src[i]) {
+					i++
+				}
+				out = append(out, Token{Kind: "var", Text: src[start:i], Line: line})
+				continue
+			}
+			out = append(out, Token{Kind: "op", Text: "$", Line: line})
+			i++
 		case c == '\'' || c == '"':
 			q := c
 			start := i
@@ -349,6 +373,21 @@ func splitStatementsDialect(src string, dialect Dialect) []Statement {
 				}
 				i++
 			}
+		case c == '$' && dialect == DialectPostgreSQL:
+			tag, bodyStart, ok := pgDollarQuoteTag(src, i)
+			if !ok {
+				i++
+				break
+			}
+			end := len(src)
+			if idx := strings.Index(src[bodyStart:], tag); idx >= 0 {
+				end = bodyStart + idx + len(tag)
+			}
+			if strings.Contains(src[i:end], "\n") {
+				line += strings.Count(src[i:end], "\n")
+				bol = true
+			}
+			i = end
 		case strings.HasPrefix(src[i:], delim):
 			flush(i)
 			i += len(delim)
@@ -384,6 +423,30 @@ func sqlServerGoLine(src string, start int) (int, bool) {
 		}
 	}
 	return end, true
+}
+
+// pgDollarQuoteTag 识别 PostgreSQL 的 $$tag$...$tag$$ 引号起始。
+// 返回完整分隔符、正文起始下标与是否识别成功。
+func pgDollarQuoteTag(src string, start int) (string, int, bool) {
+	if start >= len(src) || src[start] != '$' {
+		return "", start, false
+	}
+	j := start + 1
+	if j < len(src) && src[j] == '$' {
+		return "$$", j + 1, true
+	}
+	if j >= len(src) || !((src[j] >= 'a' && src[j] <= 'z') || (src[j] >= 'A' && src[j] <= 'Z') || src[j] == '_') {
+		return "", start, false
+	}
+	j++
+	for j < len(src) && ((src[j] >= 'a' && src[j] <= 'z') || (src[j] >= 'A' && src[j] <= 'Z') ||
+		(src[j] >= '0' && src[j] <= '9') || src[j] == '_') {
+		j++
+	}
+	if j >= len(src) || src[j] != '$' {
+		return "", start, false
+	}
+	return src[start : j+1], j + 1, true
 }
 
 // trimLeadingComments 去掉语句前的注释行，返回清理后的文本与被去掉的行数。
@@ -467,6 +530,15 @@ func stripLiterals(sql string) string {
 			}
 			b.WriteString("'?'")
 			continue
+		}
+		if c == '$' {
+			if tag, bodyStart, ok := pgDollarQuoteTag(sql, i); ok {
+				if idx := strings.Index(sql[bodyStart:], tag); idx >= 0 {
+					i = bodyStart + idx + len(tag)
+					b.WriteString("'?'")
+					continue
+				}
+			}
 		}
 		b.WriteByte(c)
 		i++

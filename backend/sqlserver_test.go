@@ -106,8 +106,8 @@ GO`, true)
 }
 
 func TestRuleCatalogTotalAndManifestTools(t *testing.T) {
-	if got := len(Rules(defaultConfig().Rules)); got != 53 {
-		t.Fatalf("规则总数应为 53，实际 %d", got)
+	if got := len(Rules(defaultConfig().Rules)); got != 61 {
+		t.Fatalf("规则总数应为 61，实际 %d", got)
 	}
 	raw, err := os.ReadFile(filepath.Join("..", "manifest.json"))
 	if err != nil {

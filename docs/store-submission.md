@@ -97,7 +97,7 @@ permissions 为准**，所以 `.dbx-store.json` 里的 `permissions` 必须与
   "source": "https://github.com/SmallRob/dbx-sql-review/tree/v0.1.25",
   "homepage": "https://github.com/SmallRob/dbx-sql-review",
   "license": "Apache-2.0",
-  "releaseNotes": "新增 SQL Server/T-SQL 静态评审与 8 条新规则，内置 AI/MCP 工具扩展为评审、结果读取、优化建议与规则清单。",
+  "releaseNotes": "新增 PostgreSQL 静态评审与 SQL080–087 八条规则，规则总数增至 61；同时修复新版 DBX 的初始化兼容性。",
   "localizations": {
     "zh-CN": {
       "name": "SQL 评审台",

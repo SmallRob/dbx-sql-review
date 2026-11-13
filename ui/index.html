@@ -245,6 +245,7 @@
                 <option value="mysql">MySQL</option>
                 <option value="sqlite">SQLite</option>
                 <option value="sqlserver">SQL Server</option>
+                <option value="postgres">PostgreSQL</option>
               </select>
             </label>
           </div>
@@ -254,7 +255,7 @@
               <span>按迁移脚本口径评审（命名 / 幂等类规则）</span>
             </label>
           </div>
-          <p class="hint">纯静态词法分析：不连接数据库、不执行被评审的 SQL。字符串字面量在报告中会被替换为 <code>?</code>。</p>
+          <p class="hint">纯静态词法分析：支持 MySQL、SQLite、SQL Server 与 PostgreSQL；不连接数据库、不执行被评审的 SQL。字符串字面量在报告中会被替换为 <code>?</code>。</p>
         </div>
       </div>
 
@@ -285,6 +286,7 @@
                 <option value="mysql">MySQL</option>
                 <option value="sqlite">SQLite</option>
                 <option value="sqlserver">SQL Server</option>
+                <option value="postgres">PostgreSQL</option>
               </select>
             </label>
             <button class="primary" id="btnBatchRun" disabled>批量评审</button>
@@ -353,7 +355,7 @@
 <script>
   const $ = (id) => document.getElementById(id);
   const SEV_LABEL = { critical: "严重", high: "高", medium: "中", low: "低", info: "提示", pass: "通过" };
-  const DIALECT_LABEL = { mysql: "MySQL", sqlite: "SQLite", sqlserver: "SQL Server", mixed: "多方言" };
+  const DIALECT_LABEL = { mysql: "MySQL", sqlite: "SQLite", sqlserver: "SQL Server", postgres: "PostgreSQL", mixed: "多方言" };
 
   const state = { rules: [], config: null, batchId: null, report: null, files: [], ruleCat: "all" };
 

@@ -179,38 +179,53 @@ func typeWithArgs(toks []Token, typeIdx int) string {
 		return base
 	}
 	j := typeIdx + 1
-	if j >= len(toks) || toks[j].Kind != "op" || toks[j].Text != "(" {
-		return base
-	}
-	// 收集括号内的原始 token，直到配平的右括号。
-	var args []string
-	depth := 0
-	for ; j < len(toks); j++ {
-		t := toks[j]
-		if t.Kind == "op" {
-			switch t.Text {
-			case "(":
-				depth++
-				if depth == 1 {
-					continue
-				}
-			case ")":
-				depth--
-				if depth == 0 {
-					return base + "(" + strings.Join(args, "") + ")"
-				}
-			case ",":
-				if depth == 1 {
-					args = append(args, ",")
-					continue
+	result := base
+	if j < len(toks) && toks[j].Kind == "op" && toks[j].Text == "(" {
+		// 收集括号内的原始 token，直到配平的右括号。
+		var args []string
+		depth := 0
+	collect:
+		for ; j < len(toks); j++ {
+			t := toks[j]
+			if t.Kind == "op" {
+				switch t.Text {
+				case "(":
+					depth++
+					if depth == 1 {
+						continue
+					}
+				case ")":
+					depth--
+					if depth == 0 {
+						result = base + "(" + strings.Join(args, "") + ")"
+						j++
+						break collect
+					}
+				case ",":
+					if depth == 1 {
+						args = append(args, ",")
+						continue
+					}
 				}
 			}
-		}
-		if depth >= 1 {
-			args = append(args, t.Text)
+			if depth >= 1 {
+				args = append(args, t.Text)
+			}
 		}
 	}
-	return base
+	// PostgreSQL 的多词类型修饰，例如 TIMESTAMP(3) WITHOUT TIME ZONE、
+	// DOUBLE PRECISION、CHARACTER VARYING。只吸收固定的修饰词，避免吞掉约束。
+	allowed := map[string]bool{"WITHOUT": true, "WITH": true, "TIME": true, "ZONE": true,
+		"PRECISION": true, "VARYING": true}
+	for j < len(toks) {
+		t := toks[j]
+		if t.Kind != "word" || !allowed[t.Upper] {
+			break
+		}
+		result += " " + strings.ToLower(t.Text)
+		j++
+	}
+	return result
 }
 
 func valueAfter(toks []Token, i int) string {

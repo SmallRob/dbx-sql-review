@@ -7,7 +7,7 @@
   "source": "https://github.com/SmallRob/dbx-sql-review/tree/v0.1.25",
   "homepage": "https://github.com/SmallRob/dbx-sql-review",
   "license": "Apache-2.0",
-  "releaseNotes": "修复新版 DBX 的初始化兼容性：sidecar 初始化返回空的 capabilities 数组而不是 null，避免插件在部分 DBX 版本中加载后调用失败。规则与评审行为不变。新增 SQL Server/T-SQL 静态评审与 SQL070–077 八条规则，支持 GO、方括号标识符、临时表、TOP、IDENTITY 与命名约束；规则总数增至 53。内置 AI/MCP 工具扩展为 sql_review、sql_review_result、sql_optimize、sql_rules，支持评审结果续查与结构化优化建议。全程不连接数据库、不执行 SQL、不发起网络请求。",
+  "releaseNotes": "新增 PostgreSQL 静态评审与 SQL080–087 八条规则：识别美元引号、:: 强转、JSONB、ON CONFLICT、RETURNING 等特征，覆盖 DDL 重放守卫、CONCURRENTLY、改列类型重写、SET NOT NULL、SERIAL、JSON/JSONB、无时区时间与 CASCADE；规则总数增至 61。同时修复新版 DBX 的初始化兼容性：sidecar 初始化返回空 capabilities 数组而不是 null。全程不连接数据库、不执行 SQL、不发起网络请求。",
   "localizations": {
     "zh-CN": {
       "name": "SQL 评审台",
