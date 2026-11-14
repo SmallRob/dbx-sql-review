@@ -50,6 +50,9 @@
     }
   }
   * { box-sizing: border-box; }
+  /* [hidden] 只是 UA 级样式，任何作者侧的 display 规则（例如 .page 的 grid）
+     都会把它覆盖掉，导致另外三个页面被一起渲染出来。这里显式兜一层。 */
+  [hidden] { display: none !important; }
   html, body { height: 100%; }
   body {
     margin: 0;
@@ -110,8 +113,10 @@
   nav.tabs button.active { color: var(--fg); border-bottom-color: var(--accent); }
   nav.tabs button:hover:not(.active) { color: var(--fg); }
 
-  main { flex: 1 1 auto; overflow: auto; padding: 16px; }
-  .page { display: grid; gap: 16px; }
+  /* main 不再留内边距：留白交给 .page，这样「规则」页才能用 height:100%
+     把卡片撑满可视高度，而不会因为 padding 多出 32px 触发外层滚动。 */
+  main { flex: 1 1 auto; overflow: auto; }
+  .page { display: grid; gap: 16px; padding: 16px; }
   .cols { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(360px, 1.25fr); gap: 16px; align-items: start; }
   @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
 
@@ -189,18 +194,46 @@
     background: var(--bg); color: var(--fg); max-width: 560px; width: 92vw;
   }
   dialog::backdrop { background: rgba(0,0,0,.45); }
-  .rule-row { display: grid; grid-template-columns: 96px 1fr 120px 92px; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); }
-  .rule-row .rid { font: 12px ui-monospace, Menlo, Consolas, monospace; color: var(--muted); }
+  /* 规则行：主体区弹性撑满，控件固定贴右边，右侧不留空洞。
+     用 flex 而不是四列 grid，避免列宽固定后中间出现大段空白。 */
+  .rule-row {
+    display: flex; align-items: center; gap: 12px;
+    width: 100%; padding: 9px 2px;
+    border-bottom: 1px solid var(--line);
+  }
+  .rule-row:hover { background: color-mix(in srgb, var(--fg) 3%, transparent); }
+  .rule-row:last-child { border-bottom: none; }
+  .rule-row .rid {
+    flex: 0 0 76px; font: 12px ui-monospace, Menlo, Consolas, monospace; color: var(--muted);
+  }
+  .rule-row .rmain { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   .rule-row .rtitle { font-size: 13px; }
-  .rule-row .rhelp { font-size: 11px; color: var(--muted); grid-column: 2 / 4; }
+  .rule-row .rhelp { font-size: 12px; color: var(--muted); }
+  .rule-row .rsev { flex: 0 0 104px; padding: 5px 8px; }
+  .rule-row .rtoggle {
+    flex: 0 0 auto; display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--muted); white-space: nowrap; cursor: pointer;
+  }
+  .rule-row .rtoggle input[type="checkbox"] { width: 15px; height: 15px; margin: 0; }
   .rule-row.opt .rtitle::after { content: "项目约定"; font-size: 10px; color: var(--warn-fg); border: 1px solid currentColor; border-radius: 999px; padding: 0 6px; margin-left: 7px; vertical-align: middle; }
-  .rule-row input[type="checkbox"] { justify-self: start; width: 16px; height: 16px; }
+  /* 窄面板下省掉「启用」文字，只留勾选框，保证标题与帮助文本有完整宽度。 */
+  @media (max-width: 720px) {
+    .rule-row { gap: 9px; }
+    .rule-row .rid { flex-basis: 64px; }
+    .rule-row .rsev { flex-basis: 88px; }
+    .rule-row .rtoggle span { display: none; }
+  }
   .dropzone { border: 2px dashed var(--line); border-radius: 10px; padding: 26px; text-align: center; color: var(--muted); font-size: 13px; }
   .dropzone.over { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
   .tabs-sub { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
   .tabs-sub button { padding: 4px 11px; font-size: 12px; border-radius: 999px; }
   .tabs-sub button.active { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
   .scroll-y { max-height: 460px; overflow-y: auto; }
+  /* 「规则」页撑满可视高度：卡片当 flex 容器，只有规则列表内部滚动。 */
+  #tab-rules:not([hidden]) { display: flex; flex-direction: column; height: 100%; }
+  #tab-rules > .card { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+  #tab-rules .card-body { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+  #tab-rules .scroll-y { flex: 1 1 auto; min-height: 160px; max-height: none; }
   a { color: var(--accent); }
   code { font: 12px ui-monospace, Menlo, Consolas, monospace; background: var(--panel); padding: 1px 5px; border-radius: 4px; }
 </style>
@@ -609,14 +642,18 @@
       const sev = (state.config.severity || {})[r.id] || r.defaultSeverity;
       return '<div class="rule-row' + (r.optional ? " opt" : "") + '">' +
         '<span class="rid">' + esc(r.id) + '</span>' +
-        '<span class="rtitle">' + esc(r.title) + '</span>' +
-        '<select data-sev="' + esc(r.id) + '">' +
+        '<span class="rmain">' +
+          '<span class="rtitle">' + esc(r.title) + '</span>' +
+          '<span class="rhelp">' + esc(r.help) + '</span>' +
+        '</span>' +
+        '<select class="rsev" data-sev="' + esc(r.id) + '">' +
           ["critical", "high", "medium", "low", "info"].map((s) =>
             '<option value="' + s + '"' + (s === sev ? " selected" : "") + '>' + SEV_LABEL[s] + '</option>').join("") +
         '</select>' +
-        '<label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)">' +
-          '<input type="checkbox" data-rule="' + esc(r.id) + '"' + (on ? " checked" : "") + ' />启用</label>' +
-        '<span class="rhelp">' + esc(r.help) + '</span>' +
+        '<label class="rtoggle">' +
+          '<input type="checkbox" data-rule="' + esc(r.id) + '"' + (on ? " checked" : "") + ' />' +
+          '<span>启用</span>' +
+        '</label>' +
       '</div>';
     }).join("");
     $("ruleList").innerHTML = html;

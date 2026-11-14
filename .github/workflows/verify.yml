@@ -29,6 +29,12 @@ jobs:
         # SDK 随仓库自带（backend/dbxpluginsdk），构建不依赖外网。
         run: go test ./...
 
+      - name: Test the bundled SDK
+        working-directory: backend/dbxpluginsdk
+        # backend/dbxpluginsdk 是独立 module，go test ./... 不会进到里面；
+        # 初始化响应的 capabilities 必须是数组，这条回归断言在这里跑。
+        run: go test ./...
+
       - name: Cross-compile every release target
         working-directory: backend
         run: |

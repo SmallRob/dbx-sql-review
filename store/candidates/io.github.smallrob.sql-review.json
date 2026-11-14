@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "io.github.smallrob.sql-review",
   "publisher": "smallrob",
-  "version": "0.1.25",
+  "version": "0.1.26",
   "name": "SQL Review",
   "description": "静态 SQL 评审台：规则化检查破坏性变更、迁移规范、性能与结构质量，不连接数据库、不执行被评审的 SQL。",
-  "icon": "https://raw.githubusercontent.com/SmallRob/dbx-sql-review/v0.1.25/assets/plugin.svg",
+  "icon": "https://raw.githubusercontent.com/SmallRob/dbx-sql-review/v0.1.26/assets/plugin.svg",
   "tags": [
     "sql",
     "review",
@@ -16,10 +16,10 @@
   "permissions": [
     "host.workbench"
   ],
-  "source": "https://github.com/SmallRob/dbx-sql-review/tree/v0.1.25",
+  "source": "https://github.com/SmallRob/dbx-sql-review/tree/v0.1.26",
   "homepage": "https://github.com/SmallRob/dbx-sql-review",
   "license": "Apache-2.0",
-  "releaseNotes": "新增 PostgreSQL 静态评审与 SQL080–087 八条规则：识别美元引号、:: 强转、JSONB、ON CONFLICT、RETURNING 等特征，覆盖 DDL 重放守卫、CONCURRENTLY、改列类型重写、SET NOT NULL、SERIAL、JSON/JSONB、无时区时间与 CASCADE；规则总数增至 61。同时修复新版 DBX 的初始化兼容性：sidecar 初始化返回空 capabilities 数组而不是 null。全程不连接数据库、不执行 SQL、不发起网络请求。",
+  "releaseNotes": "修复上架版本在 DBX 中完全不可用的两个阻塞缺陷：（1）sidecar 初始化在 capabilities 为空时返回 null，宿主按数组解码导致整个插件初始化失败，现已统一归一化为空数组并补了回归测试；（2）工作台「评审 / 批量目录 / 规则 / 记录」四个标签页同时渲染——[hidden] 被 .page 的 display:grid 覆盖，现已恢复互斥切换。同时修正本地候选打包脚本未按平台重写 sidecar 路径的问题。规则能力不变：61 条规则，支持 MySQL、SQLite、SQL Server 与 PostgreSQL，全程不连接数据库、不执行 SQL、不发起网络请求。",
   "localizations": {
     "zh-CN": {
       "name": "SQL 评审台",
@@ -29,33 +29,33 @@
   "targets": [
     {
       "target": "darwin-arm64",
-      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.25/io.github.smallrob.sql-review-0.1.25-darwin-arm64.dbxp",
-      "sha256": "37f1e99071f8b2f611aa8647b0e52504f3cab5b62aff5d6003310ffa2c567636",
-      "size": 2074373
+      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.26/io.github.smallrob.sql-review-0.1.26-darwin-arm64.dbxp",
+      "sha256": "968b843d6ac473d2cc52a9034b6d0e53cb8443f49e535bbf5b0aa0d18cf8f7b3",
+      "size": 2430488
     },
     {
       "target": "darwin-x64",
-      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.25/io.github.smallrob.sql-review-0.1.25-darwin-x64.dbxp",
-      "sha256": "6154dd338b455d7b8e77f4e1f0e0925503c9316e60f7080e9592fc691cf6e789",
-      "size": 2173424
+      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.26/io.github.smallrob.sql-review-0.1.26-darwin-x64.dbxp",
+      "sha256": "e8146d61d6c75abc184d4a4970c9aa87a5a8243ac0e9d23e272e1e4a5a6932b0",
+      "size": 2580334
     },
     {
       "target": "linux-arm64",
-      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.25/io.github.smallrob.sql-review-0.1.25-linux-arm64.dbxp",
-      "sha256": "fd4e34c2ec47987fa808f07e3113cd95928300a7606a7916a5326a0e7d416328",
-      "size": 2053919
+      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.26/io.github.smallrob.sql-review-0.1.26-linux-arm64.dbxp",
+      "sha256": "b54cd5ff8db66d811c9d2807b5ee19bd9b7f5364dd5b4eaeecc37ce5a0dd000f",
+      "size": 2319044
     },
     {
       "target": "linux-x64",
-      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.25/io.github.smallrob.sql-review-0.1.25-linux-x64.dbxp",
-      "sha256": "9525b855a229362000b08ebad7e477c6626eed3542dd9d75021039162b91c586",
-      "size": 2187921
+      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.26/io.github.smallrob.sql-review-0.1.26-linux-x64.dbxp",
+      "sha256": "79f897a06ffb485daf15f0bd9054e20541b441718f511f7ab30d90a5c76e276a",
+      "size": 2515539
     },
     {
       "target": "windows-x64",
-      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.25/io.github.smallrob.sql-review-0.1.25-windows-x64.dbxp",
-      "sha256": "8132d01d5bd8787aaace6ae97a3e128c6a309a836a2996d1def2d9427efd237b",
-      "size": 2246835
+      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.26/io.github.smallrob.sql-review-0.1.26-windows-x64.dbxp",
+      "sha256": "0f8c33da8d36fb030f5fda884b5cc2e246af947022a16045acc542c960390ff6",
+      "size": 2563596
     }
   ]
 }
