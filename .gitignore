@@ -11,3 +11,6 @@
 .DS_Store
 *.log
 *.signed.dbxp
+
+# 本地工作记忆（不进公开仓库）
+/.workbuddy/
