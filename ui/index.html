@@ -50,6 +50,9 @@
     }
   }
   * { box-sizing: border-box; }
+  /* [hidden] 只是 UA 级样式，任何作者侧的 display 规则（例如 .page 的 grid）
+     都会把它覆盖掉，导致另外三个页面被一起渲染出来。这里显式兜一层。 */
+  [hidden] { display: none !important; }
   html, body { height: 100%; }
   body {
     margin: 0;

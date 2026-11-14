@@ -5,7 +5,7 @@
 因此在同一台机器上无法一次性产出 5 个平台的候选。本脚本用 Go 交叉编译补齐，
 产出的包结构与官方 CLI 完全一致：
 
-    manifest.json
+    manifest.json                              entrypoints.backend.executable 按 target 重写
     bin/<target>/dbx-plugin-sql-review[.exe]   0755
     assets/*
     ui/*
@@ -43,9 +43,7 @@ TARGETS = {
     "windows-x64": ("windows", "amd64", ".exe"),
 }
 
-VERSION = "0.1.25"
-
-# 源码仓库（owner/repo）。插件 ID、publisher、图标与产物 URL 都由它派生，
+# 仓库源码地址（owner/repo）。插件 ID、publisher、图标与产物 URL 都由它派生，
 # 避免多处硬编码后各自漂移。
 REPOSITORY = "SmallRob/dbx-sql-review"
 
@@ -98,7 +96,14 @@ def pack(target: str, binary: Path) -> Path:
     manifest = json.loads((ROOT / "manifest.json").read_text(encoding="utf-8"))
     pid, version = manifest["id"], manifest["version"]
 
-    files: list[tuple[str, bytes]] = [("manifest.json", (ROOT / "manifest.json").read_bytes())]
+    binary_rel = "bin/%s/dbx-plugin-sql-review%s" % (target, binary.suffix)
+
+    # 官方 CLI 会按目标平台重写 sidecar 路径；这里必须保持一致，
+    # 否则包内文件在 bin/<target>/ 而 manifest 指向 bin/…，宿主根本找不到二进制。
+    manifest["entrypoints"]["backend"]["executable"] = binary_rel
+    manifest_blob = (json.dumps(manifest, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+
+    files: list[tuple[str, bytes]] = [("manifest.json", manifest_blob)]
     for folder in ("assets", "ui"):
         base = ROOT / folder
         if not base.exists():
@@ -106,7 +111,7 @@ def pack(target: str, binary: Path) -> Path:
         for path in sorted(base.rglob("*")):
             if path.is_file():
                 files.append((path.relative_to(ROOT).as_posix(), path.read_bytes()))
-    files.append(("bin/%s/dbx-plugin-sql-review%s" % (target, binary.suffix), binary.read_bytes()))
+    files.append((binary_rel, binary.read_bytes()))
 
     checksums = {name: sha256_bytes(data) for name, data in files}
     checksums_blob = json.dumps(
@@ -131,6 +136,17 @@ def pack(target: str, binary: Path) -> Path:
         zf.writestr(info, checksums_blob)
 
     tmp.replace(out)
+
+    # 自检：包内 manifest 指向的 sidecar 必须真的在包里，版本也必须一致。
+    with zipfile.ZipFile(out) as zf:
+        names = set(zf.namelist())
+        packed_manifest = json.loads(zf.read("manifest.json").decode("utf-8"))
+    executable = packed_manifest["entrypoints"]["backend"]["executable"]
+    if executable not in names:
+        raise SystemExit("%s: manifest 指向的可执行文件不存在: %s" % (out.name, executable))
+    if packed_manifest["version"] != version:
+        raise SystemExit("%s: 包内版本 %s 与 manifest.json 的 %s 不一致"
+                         % (out.name, packed_manifest["version"], version))
     return out
 
 
@@ -232,6 +248,10 @@ def main() -> int:
             if "manifest.json" not in names:
                 raise SystemExit("候选包缺少 manifest.json: %s" % package)
     print("自检通过：所有候选包均未签名，且包含 manifest.json")
+    print(
+        "提醒：候选元数据里的 sha256 来自本地交叉编译，与官方 CI 产物不一定逐字节相同；"
+        "正式上架前必须按 docs/store-submission.md 3.2 用 Release 产物重新同步。"
+    )
     return 0
 
 

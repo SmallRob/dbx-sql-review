@@ -26,8 +26,10 @@ const (
 )
 
 type Metadata struct {
-	ID           string
-	Version      string
+	ID      string
+	Version string
+	// Capabilities 会原样出现在 plugin/initialize 的响应里，必须是数组。
+	// 不需要任何能力时留空即可：SDK 会把 nil 归一化成 []，绝不会编码成 null。
 	Capabilities []string
 }
 
@@ -351,9 +353,16 @@ func (server *Server) initialize(params json.RawMessage) (any, *PluginError) {
 	}
 	for _, version := range request.Host.ProtocolVersions {
 		if version == ProtocolVersion {
+			// Capabilities 必须编码成数组。nil 切片会被 encoding/json 写成
+			// null，宿主按 sequence 解码时整个插件初始化会直接失败，所以这里
+			// 统一归一化成空数组，不依赖调用方是否记得初始化。
+			capabilities := server.metadata.Capabilities
+			if capabilities == nil {
+				capabilities = []string{}
+			}
 			return map[string]any{
 				"protocolVersion": ProtocolVersion,
-				"capabilities":    server.metadata.Capabilities,
+				"capabilities":    capabilities,
 				"plugin": map[string]string{
 					"id":      server.metadata.ID,
 					"version": server.metadata.Version,
