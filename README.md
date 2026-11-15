@@ -66,10 +66,12 @@ timezone-less timestamps and `CASCADE`. All four dialects remain purely static.
 
 Four tabs:
 
-- **Review** — paste SQL or drop a `.sql` file; see per-finding evidence and the
-  six-dimension quality profile.
-- **Batch** — drop many scripts at once, review the directory, check consistency,
-  export Markdown.
+- **Review** — open a `.sql` file, paste SQL, or drop a single file. A quality gauge
+  summarizes score/grade/risk, six dimensions show hit counts, and findings can be
+  filtered, expanded, copied or located back in the editor.
+- **Batch** — drop many scripts at once. The selected-file list shows line counts,
+  sizes, deduplication, per-file removal and clear; after review, a compact gauge
+  and grade distribution summarize the directory, ready for Markdown export.
 - **Rules** — browse all rules by category; toggle and re-level each one.
 - **Records** — review history and hash-chain verification.
 

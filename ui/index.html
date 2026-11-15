@@ -126,6 +126,9 @@
     padding: 10px 14px; background: var(--panel);
   }
   .card > header h2 { font-size: 13px; margin: 0; font-weight: 600; }
+  .card-head { display: flex; align-items: center; gap: 8px; }
+  .card-head h2 { flex: 1 1 auto; }
+  .card-head button { padding: 3px 9px; font-size: 11px; }
   .card-body { padding: 14px; }
   .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -137,12 +140,83 @@
   .metric .num { font-size: 26px; font-weight: 680; line-height: 1.1; }
   .metric .cap { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
 
-  .dims { display: grid; gap: 7px; margin-top: 12px; }
-  .dim { display: grid; grid-template-columns: 82px 1fr 34px; gap: 9px; align-items: center; font-size: 12px; }
-  .bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
-  .bar > i { display: block; height: 100%; background: var(--pass); border-radius: 3px; }
-  .bar > i.mid { background: var(--high); }
-  .bar > i.low { background: var(--critical); }
+  /* 质量画像：评分环负责第一眼结论，维度与统计负责解释，命中列表负责处置。 */
+  .quality-card {
+    display: grid; grid-template-columns: 126px minmax(0, 1fr); gap: 16px; align-items: center;
+    padding: 14px; margin-bottom: 12px; border: 1px solid var(--line); border-radius: 12px;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 62%);
+  }
+  .quality-card.compact { grid-template-columns: 104px minmax(0, 1fr); gap: 12px; padding: 11px 13px; }
+  .quality-gauge { position: relative; width: 120px; height: 120px; margin: 0 auto; }
+  .quality-card.compact .quality-gauge { width: 96px; height: 96px; }
+  .quality-gauge svg { display: block; width: 100%; height: 100%; transform: rotate(-90deg); }
+  .quality-gauge .track { stroke: var(--line); }
+  .quality-gauge .value { transition: stroke-dashoffset .55s cubic-bezier(.3,.8,.3,1); }
+  .quality-gauge .center {
+    position: absolute; inset: 0; display: grid; place-content: center; text-align: center;
+  }
+  .quality-gauge .center b {
+    font-size: 32px; font-weight: 750; line-height: 1; letter-spacing: -.8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .quality-card.compact .quality-gauge .center b { font-size: 25px; }
+  .quality-gauge .center span { margin-top: 3px; font-size: 10px; color: var(--muted); letter-spacing: .5px; }
+  .quality-main { min-width: 0; }
+  .quality-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+  .quality-head .grade { font-size: 27px; font-weight: 750; line-height: 1; letter-spacing: -.6px; }
+  .quality-head .grade-label { font-size: 13px; font-weight: 650; }
+  .quality-head .risk-pill {
+    margin-left: auto; padding: 3px 9px; border-radius: 999px; font-size: 11px;
+    color: var(--muted); background: var(--panel); border: 1px solid var(--line); white-space: nowrap;
+  }
+  .quality-head .risk-pill.risk-high, .quality-head .risk-pill.risk-critical { color: var(--critical); }
+  .quality-head .risk-pill.risk-medium { color: var(--high); }
+  .quality-verdict { margin: 0 0 7px; font-size: 12px; color: var(--fg); }
+  .quality-cap {
+    display: inline-block; margin: 0 0 7px; padding: 2px 7px; border-radius: 5px;
+    font-size: 11px; color: var(--warn-fg); background: var(--warn-bg);
+  }
+  .quality-stats {
+    display: flex; flex-wrap: wrap; gap: 3px 10px; margin-bottom: 9px;
+    font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+  .quality-stats b { color: var(--fg); font-weight: 650; }
+  .quality-dims { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 18px; }
+  .quality-card.compact .quality-dims { display: none; }
+  .qd {
+    display: grid; grid-template-columns: 64px minmax(42px, 1fr) 28px 40px; gap: 7px;
+    align-items: center; font-size: 11px; min-width: 0;
+  }
+  .qd .name { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .qd .track { height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; }
+  .qd .track > i { display: block; height: 100%; border-radius: 999px; transition: width .45s ease; }
+  .qd .val { text-align: right; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .qd .hits { text-align: right; font-size: 10px; color: var(--muted); white-space: nowrap; }
+  .qd.na { opacity: .45; }
+  @media (max-width: 720px) {
+    .quality-card { grid-template-columns: 1fr; }
+    .quality-head .risk-pill { margin-left: 0; }
+    .quality-dims { grid-template-columns: 1fr; }
+  }
+
+  .review-findings { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+  .review-toolbar {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    padding: 0 0 9px; margin-bottom: 2px; border-bottom: 1px solid var(--line);
+  }
+  .review-toolbar .filters { display: flex; gap: 4px; flex-wrap: wrap; }
+  .review-toolbar .filter {
+    padding: 3px 9px; border-radius: 999px; font-size: 11px; line-height: 1.4;
+  }
+  .review-toolbar .filter.active { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .review-toolbar .filter b { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .review-toolbar .filter.zero { opacity: .5; }
+  .review-id {
+    margin-left: auto; font: 10.5px ui-monospace, Menlo, Consolas, monospace;
+    color: var(--muted); max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .review-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 4px; }
+  @media (max-width: 900px) { .review-list { overflow: visible; } }
 
   .finding { border: 1px solid var(--line); border-left-width: 3px; border-radius: 9px; padding: 10px 12px; margin-bottom: 8px; background: var(--bg); }
   .finding.critical { border-left-color: var(--critical); }
@@ -154,6 +228,16 @@
   .finding .rule { font: 11px/1.4 ui-monospace, Menlo, Consolas, monospace; color: var(--muted); }
   .finding p { margin: 3px 0; font-size: 13px; }
   .finding .advice { color: var(--muted); }
+  .finding .fact-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 7px; }
+  .finding .fact-actions button { padding: 2px 8px; font-size: 11px; }
+  .finding details { margin-top: 7px; }
+  .finding details summary {
+    cursor: pointer; font-size: 11px; color: var(--muted); list-style: none;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .finding details summary::before { content: "▸"; font-size: 10px; }
+  .finding details[open] summary::before { content: "▾"; }
+  .finding details pre { margin-top: 6px; }
   .finding pre {
     margin: 6px 0 0; padding: 7px 9px; background: var(--panel);
     border-radius: 6px; font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace;
@@ -225,10 +309,52 @@
   }
   .dropzone { border: 2px dashed var(--line); border-radius: 10px; padding: 26px; text-align: center; color: var(--muted); font-size: 13px; }
   .dropzone.over { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  .batch-files { margin-top: 10px; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .batch-files-head {
+    display: flex; align-items: center; gap: 8px; padding: 6px 9px;
+    background: var(--panel); border-bottom: 1px solid var(--line); font-size: 11px; color: var(--muted);
+  }
+  .batch-files-head b { color: var(--fg); font-weight: 650; }
+  .batch-dedup { margin-left: auto; color: var(--muted); }
+  .batch-files-head button { padding: 2px 8px; font-size: 11px; }
+  .batch-file-list { max-height: 248px; overflow-y: auto; }
+  .batch-file-row {
+    display: grid; grid-template-columns: minmax(0, 1fr) 48px 58px 42px; gap: 8px;
+    align-items: center; padding: 6px 9px; border-bottom: 1px solid var(--line); font-size: 11.5px;
+  }
+  .batch-file-row:last-child { border-bottom: none; }
+  .batch-file-row .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .batch-file-row .meta { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .batch-file-row button { padding: 1px 7px; font-size: 11px; }
+  @media (max-width: 560px) {
+    .batch-file-row { grid-template-columns: minmax(0, 1fr) 42px 42px; }
+    .batch-file-row .meta.size { display: none; }
+  }
   .tabs-sub { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
   .tabs-sub button { padding: 4px 11px; font-size: 12px; border-radius: 999px; }
   .tabs-sub button.active { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
   .scroll-y { max-height: 460px; overflow-y: auto; }
+  /* 评审页宽屏撑满可视高度：左右卡片等高，SQL 编辑区弹性占满，
+     结果区在卡片内部滚动，而不是两张卡按内容高度各自收缩。 */
+  @media (min-width: 901px) {
+    #tab-review:not([hidden]) { display: flex; flex-direction: column; height: 100%; }
+    #tab-review .cols {
+      flex: 1 1 auto;
+      min-height: 0;
+      align-items: stretch;
+      grid-template-rows: minmax(0, 1fr);
+    }
+    #tab-review .cols > .card { display: flex; flex-direction: column; min-height: 0; }
+    #tab-review .cols > .card > .card-body {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+    #tab-review #reviewOut { overflow: hidden; }
+    #tab-review .review-list { overflow-y: auto; }
+    #tab-review textarea#sql { flex: 1 1 auto; min-height: 180px; resize: none; }
+  }
   /* 「规则」页撑满可视高度：卡片当 flex 容器，只有规则列表内部滚动。 */
   #tab-rules:not([hidden]) { display: flex; flex-direction: column; height: 100%; }
   #tab-rules > .card { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
@@ -267,6 +393,11 @@
         <header><h2>待评审 SQL</h2></header>
         <div class="card-body">
           <div class="err" id="reviewErr"></div>
+          <div class="row" style="margin-bottom:8px">
+            <button id="btnPickReviewFile" title="选择本地 .sql 文件并立即评审">从文件打开</button>
+            <span class="hint" id="reviewFileMeta" style="margin:0;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">未选择文件，也可直接粘贴 SQL</span>
+          </div>
+          <input type="file" id="reviewFileInput" accept=".sql" hidden />
           <textarea id="sql" rows="16" spellcheck="false" placeholder="在此粘贴 SQL，或把 .sql 文件拖进来…"></textarea>
           <div class="row" style="margin-top:10px">
             <button class="primary" id="btnReview">开始评审</button>
@@ -293,7 +424,11 @@
       </div>
 
       <div class="card">
-        <header><h2>评审结果</h2></header>
+        <header class="card-head">
+          <h2>评审结果</h2>
+          <button id="btnCopyReview" disabled title="复制本次评审摘要">复制摘要</button>
+          <button id="btnExportReview" disabled title="导出本次评审 Markdown">导出</button>
+        </header>
         <div class="card-body" id="reviewOut">
           <div class="empty">还没有评审结果。</div>
         </div>
@@ -308,9 +443,19 @@
         <header><h2>迁移目录</h2></header>
         <div class="card-body">
           <div class="err" id="batchErr"></div>
-          <div class="dropzone" id="dropzone">把 .sql 文件拖到这里<br /><span style="font-size:12px">可一次拖多个，自动进入批量评审</span></div>
+          <div class="dropzone" id="dropzone">把 .sql 文件拖到这里<br /><span style="font-size:12px">也可以点下面的「选择文件」</span></div>
           <div class="row" style="margin-top:12px">
-            <input type="file" id="fileInput" accept=".sql" multiple />
+            <button id="btnPickBatchFiles">选择文件</button>
+            <span class="hint" id="batchFileMeta" style="margin:0">尚未选择文件</span>
+            <input type="file" id="fileInput" accept=".sql" multiple hidden />
+          </div>
+          <div class="batch-files" id="batchFilePanel" hidden>
+            <div class="batch-files-head">
+              <span><b id="batchFileCount">0</b> 个 SQL 文件</span>
+              <span class="batch-dedup" id="batchDedupNote" hidden></span>
+              <button id="btnBatchFilesClear" title="移除全部已选文件">清空</button>
+            </div>
+            <div class="batch-file-list" id="batchFileList"></div>
           </div>
           <div class="row" style="margin-top:10px">
             <label class="field" style="flex:0 0 150px">
@@ -390,7 +535,11 @@
   const SEV_LABEL = { critical: "严重", high: "高", medium: "中", low: "低", info: "提示", pass: "通过" };
   const DIALECT_LABEL = { mysql: "MySQL", sqlite: "SQLite", sqlserver: "SQL Server", postgres: "PostgreSQL", mixed: "多方言" };
 
-  const state = { rules: [], config: null, batchId: null, report: null, files: [], ruleCat: "all" };
+  const state = {
+    rules: [], config: null, batchId: null, report: null, files: [], ruleCat: "all",
+    reviewFile: "inline.sql", reviewResult: null, reviewId: null, reviewFilter: "all",
+    dupCount: 0,
+  };
 
   function invoke(method, params, timeoutMs) {
     if (!window.dbxPlugin || typeof window.dbxPlugin.invoke !== "function") {
@@ -432,7 +581,7 @@
     try {
       const r = await invoke("review/sql", {
         sql: sql,
-        file: "inline.sql",
+        file: state.reviewFile || "inline.sql",
         migration: $("migration").checked,
         dialect: $("dialect").value,
       }, 60000);
@@ -444,59 +593,354 @@
     }
   }
   $("btnReview").addEventListener("click", doReview);
-  $("btnClear").addEventListener("click", () => { $("sql").value = ""; showErr("reviewErr", ""); $("reviewOut").innerHTML = '<div class="empty">还没有评审结果。</div>'; });
+  $("btnClear").addEventListener("click", () => {
+    $("sql").value = "";
+    state.reviewFile = "inline.sql";
+    state.reviewResult = null;
+    state.reviewId = null;
+    state.reviewFilter = "all";
+    $("reviewFileMeta").textContent = "未选择文件，也可直接粘贴 SQL";
+    $("btnCopyReview").disabled = true;
+    $("btnExportReview").disabled = true;
+    showErr("reviewErr", "");
+    $("reviewOut").innerHTML = '<div class="empty">还没有评审结果。</div>';
+  });
 
-  function qualityColor(score) {
-    if (score >= 86) return "";
-    if (score >= 72) return "mid";
-    return "low";
+  // 单文件入口：File API 读取后填入编辑区并立即评审，不依赖 DBX 宿主能力。
+  const MIGRATION_RE = /^V[\d._]+__.+\.sql$/i;
+  const hasFiles = (e) => !!(e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files"));
+
+  async function loadReviewFile(file) {
+    if (!file) return;
+    if (!/\.sql$/i.test(file.name)) {
+      showErr("reviewErr", "只支持 .sql 文件；其他内容请直接粘贴。");
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      showErr("reviewErr", "文件超过 4 MB，请改用「批量目录」评审。");
+      return;
+    }
+    let text = "";
+    try {
+      text = await readFileText(file);
+    } catch (e) {
+      showErr("reviewErr", "读取失败：" + (e && e.message ? e.message : file.name));
+      return;
+    }
+    text = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n");
+    $("sql").value = text;
+    state.reviewFile = file.name;
+    $("reviewFileMeta").textContent = file.name + " · " + text.split("\n").length + " 行";
+    // 迁移脚本命名才自动勾选；普通 .sql 保留用户当前选择，避免悄悄改变评审口径。
+    if (MIGRATION_RE.test(file.name)) $("migration").checked = true;
+    showErr("reviewErr", "");
+    activateTab("review");
+    toast("已载入 " + file.name + "，开始评审");
+    await doReview();
   }
+
+  function handleSqlFiles(files, preferBatch) {
+    const sqls = Array.from(files || []).filter((f) => /\.sql$/i.test(f.name));
+    if (!sqls.length) { toast("没有找到 .sql 文件"); return; }
+    if (!preferBatch && sqls.length === 1) { loadReviewFile(sqls[0]); return; }
+    activateTab("batch");
+    addFiles(sqls);
+  }
+
+  $("btnPickReviewFile").addEventListener("click", () => $("reviewFileInput").click());
+  $("reviewFileInput").addEventListener("change", (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (f) loadReviewFile(f);
+  });
+
+  const GRADE_COLOR = {
+    "A+": "var(--pass)", A: "var(--pass)", B: "var(--accent)",
+    C: "var(--high)", D: "var(--critical)", E: "var(--critical)",
+  };
+  const SEV_ORDER = ["critical", "high", "medium", "low", "info"];
+  function gradeColor(grade) { return GRADE_COLOR[grade] || "var(--accent)"; }
+  function dimColor(score) {
+    return score >= 85 ? "var(--pass)" : score >= 65 ? "var(--accent)"
+      : score >= 45 ? "var(--high)" : score >= 25 ? "var(--critical)" : "var(--critical)";
+  }
+  function riskClass(level) {
+    return level === "critical" ? "risk-critical" : level === "high" ? "risk-high"
+      : level === "medium" ? "risk-medium" : "";
+  }
+  function animateQualityGauges() {
+    const nodes = document.querySelectorAll(".quality-gauge .value");
+    if (!nodes.length) return;
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const apply = () => nodes.forEach((n) => { n.style.strokeDashoffset = n.dataset.target; });
+    if (reduce) { apply(); return; }
+    requestAnimationFrame(() => requestAnimationFrame(apply));
+  }
+  function renderQualityCard(m, res, opts) {
+    m = m || {};
+    opts = opts || {};
+    const risk = m.risk != null ? m.risk : (res && res.score != null ? res.score : 0);
+    const riskLevel = m.riskLevel || (res && res.level) || "";
+    const quality = m.quality != null ? Math.max(0, Math.min(100, m.quality)) : Math.max(0, 100 - risk);
+    const color = gradeColor(m.grade);
+    const R = 52, C = 2 * Math.PI * R;
+    const target = (C * (1 - quality / 100)).toFixed(1);
+    const grade = m.grade || "—";
+    const gradeLabel = m.gradeLabel || "";
+    const verdict = m.verdict || "";
+
+    let cap = "";
+    if (res && res.level === "critical" && grade === "E") {
+      cap = '<div class="quality-cap">含严重级（不可逆）变更，等级直接判不合格</div>';
+    } else if (res && res.level === "high" && grade === "C") {
+      cap = '<div class="quality-cap">存在高风险项，等级被最高风险封顶</div>';
+    }
+
+    const stats = [];
+    const addStat = (k, v) => {
+      if (v == null || v === "" || v === 0) return;
+      stats.push("<span>" + esc(k) + " <b>" + esc(v) + "</b></span>");
+    };
+    (opts.extraStats || []).forEach(([k, v]) => addStat(k, v));
+    if (!opts.compact) {
+      const st = m.stats || {};
+      addStat("行", st.lines);
+      addStat("语句", st.statements != null ? st.statements : (res && res.statements));
+      addStat("涉及表", st.tables != null ? st.tables : (res && res.tables ? res.tables.length : 0));
+      addStat("DDL", st.ddl);
+      addStat("DML", st.dml);
+      addStat("JOIN", st.joins);
+      addStat("子查询", st.subqueries);
+      if (st.maxNesting > 1) addStat("最大嵌套", st.maxNesting);
+      addStat("索引操作", st.indexes);
+      addStat("命中密度", m.density ? m.density + " / 百行" : 0);
+      addStat("方言", res ? DIALECT_LABEL[res.dialect] || res.dialect : "");
+    }
+
+    let dims = "";
+    if (!opts.compact && Array.isArray(m.dimensions) && m.dimensions.length) {
+      dims = '<div class="quality-dims">' + m.dimensions.map((d) => {
+        if (!d.applicable) {
+          return '<div class="qd na" title="' + esc(d.hint || "") + '"><span class="name">' + esc(d.label) +
+            '</span><span class="track"></span><span class="val">—</span><span class="hits">未校验</span></div>';
+        }
+        const score = Math.max(0, Math.min(100, Number(d.score) || 0));
+        return '<div class="qd" title="' + esc(d.hint || d.label) + '">' +
+          '<span class="name">' + esc(d.label) + '</span>' +
+          '<span class="track"><i style="width:' + score + '%;background:' + dimColor(score) + '"></i></span>' +
+          '<span class="val">' + score + '</span>' +
+          '<span class="hits">' + (d.hits ? esc(d.hits) + " 项" : "0 项") + '</span></div>';
+      }).join("") + '</div>';
+    }
+
+    const riskPill = (m.risk != null || res) && risk != null
+      ? '<span class="risk-pill ' + riskClass(riskLevel) + '">风险分 ' + esc(risk) + ' · ' + esc(SEV_LABEL[riskLevel] || riskLevel || "—") + '</span>'
+      : "";
+    return '<div class="quality-card' + (opts.compact ? " compact" : "") + '">' +
+      '<div class="quality-gauge" role="img" aria-label="质量分 ' + quality + '，等级 ' + esc(grade) + ' ' + esc(gradeLabel) + '">' +
+        '<svg viewBox="0 0 120 120" aria-hidden="true">' +
+          '<circle class="track" cx="60" cy="60" r="' + R + '" fill="none" stroke-width="9"></circle>' +
+          '<circle class="value" cx="60" cy="60" r="' + R + '" fill="none" stroke="' + color + '" stroke-width="9" ' +
+            'stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + C.toFixed(1) + '" data-target="' + target + '" stroke-linecap="round"></circle>' +
+        '</svg>' +
+        '<div class="center"><b style="color:' + color + '">' + quality + '</b><span>质量分</span></div>' +
+      '</div>' +
+      '<div class="quality-main">' +
+        '<div class="quality-head">' +
+          '<span class="grade" style="color:' + color + '">' + esc(grade) + '</span>' +
+          '<span class="grade-label">' + esc(gradeLabel) + '</span>' + riskPill +
+        '</div>' +
+        cap +
+        '<p class="quality-verdict">' + esc(verdict) + '</p>' +
+        (stats.length ? '<div class="quality-stats">' + stats.join("") + '</div>' : "") +
+        dims +
+      '</div>' +
+    '</div>';
+  }
+
+  function findingCard(f, idx) {
+    const lineBtn = f.line ? '<button data-finding-line="' + esc(f.line) + '" title="在左侧 SQL 编辑区定位第 ' + esc(f.line) + ' 行">定位 L' + esc(f.line) + '</button>' : "";
+    const snippet = f.snippet
+      ? '<details><summary>证据片段</summary><pre>' + esc(f.snippet) + '</pre></details>'
+      : "";
+    return '<div class="finding ' + esc(f.severity) + '">' +
+      '<h4>' + sevBadge(f.severity) + '<span>' + esc(f.title) + '</span>' +
+        '<span class="rule">' + esc(f.ruleId) + (f.line ? ' · L' + esc(f.line) : "") + (f.dynamic ? " · 动态" : "") + '</span></h4>' +
+      '<p>' + esc(f.message) + '</p>' +
+      (f.advice ? '<p class="advice">建议：' + esc(f.advice) + '</p>' : "") +
+      '<div class="fact-actions"><button data-finding-copy="' + idx + '">复制建议</button>' + lineBtn + '</div>' +
+      snippet +
+    '</div>';
+  }
+
+  function renderFindings() {
+    const res = state.reviewResult;
+    const toolbar = $("reviewToolbar");
+    const list = $("reviewList");
+    if (!res || !toolbar || !list) return;
+    const all = Array.isArray(res.findings) ? res.findings : [];
+    const counts = {};
+    SEV_ORDER.forEach((k) => { counts[k] = 0; });
+    all.forEach((f) => { if (counts[f.severity] != null) counts[f.severity]++; });
+    const active = state.reviewFilter || "all";
+
+    const filters = ['<button class="filter ' + (active === "all" ? "active" : "") + '" data-filter="all">全部 <b>' + all.length + '</b></button>']
+      .concat(SEV_ORDER.map((k) => '<button class="filter ' + (active === k ? "active" : "") + (counts[k] ? "" : " zero") +
+        '" data-filter="' + k + '">' + SEV_LABEL[k] + ' <b>' + counts[k] + '</b></button>'));
+    const rid = state.reviewId
+      ? '<span class="review-id" data-copy-text="' + esc(state.reviewId) + '" title="点击复制 AI 续查 ID（sidecar 内存缓存，重启后失效）">AI 续查 · ' + esc(state.reviewId) + '</span>'
+      : "";
+    toolbar.innerHTML = '<div class="filters">' + filters.join("") + '</div>' + rid;
+
+    const filtered = active === "all" ? all : all.filter((f) => f.severity === active);
+    if (!all.length) {
+      list.innerHTML = '<div class="ok-banner">未命中任何规则，可以直接发布。</div>';
+      return;
+    }
+    if (!filtered.length) {
+      list.innerHTML = '<div class="empty">当前筛选下没有命中项。</div>';
+      return;
+    }
+    list.innerHTML = filtered.map((f) => {
+      const idx = all.indexOf(f);
+      return findingCard(f, idx);
+    }).join("");
+  }
+
   function renderResult(res, reviewId) {
+    state.reviewResult = res;
+    state.reviewId = reviewId || null;
+    state.reviewFilter = "all";
     const m = res.metrics || {};
-    const out = [];
-    out.push('<div class="metric">');
-    out.push('<div class="box"><div class="num">' + esc(m.quality != null ? m.quality : res.score) + '</div><div class="cap">质量分</div></div>');
-    out.push('<div class="box"><div class="num">' + esc(m.grade || "—") + '</div><div class="cap">' + esc(m.gradeLabel || "") + '</div></div>');
-    out.push('<div class="box"><div class="num">' + esc(res.score) + '</div><div class="cap">风险分</div></div>');
-    out.push('<div class="box"><div class="num">' + esc(res.statements) + '</div><div class="cap">语句</div></div>');
-    out.push('<div class="box"><div class="num">' + esc(res.tables.length) + '</div><div class="cap">涉及表</div></div>');
-    out.push('<div class="box"><div class="num">' + esc(DIALECT_LABEL[res.dialect] || res.dialect) + '</div><div class="cap">方言</div></div>');
-    out.push('</div>');
-    if (m.verdict) out.push('<p style="margin:10px 0 0"><b>' + esc(m.verdict) + '</b></p>');
-    if (reviewId) out.push('<p class="hint">AI 续查 ID：<code>' + esc(reviewId) + '</code>（sidecar 内存缓存，重启后失效）</p>');
-
-    if (m.dimensions && m.dimensions.length) {
-      out.push('<div class="dims">');
-      for (const d of m.dimensions) {
-        out.push('<div class="dim"><span>' + esc(d.label) + '</span><span class="bar"><i class="' + qualityColor(d.score) + '" style="width:' + Math.max(2, d.score) + '%"></i></span><span style="text-align:right">' + esc(d.score) + '</span></div>');
-      }
-      out.push('</div>');
-    }
-
-    const counts = res.counts || {};
-    const parts = ["critical", "high", "medium", "low", "info"]
-      .filter((k) => counts[k])
-      .map((k) => SEV_LABEL[k] + " " + counts[k]);
-    if (parts.length) {
-      out.push('<div class="row" style="margin-top:12px">' + parts.map((p) => '<span class="pill">' + esc(p) + '</span>').join("") + '</div>');
-    }
-    if (res.note) out.push('<p class="hint">' + esc(res.note) + '</p>');
-
-    out.push('<h3 style="font-size:13px;margin:16px 0 8px">逐条命中（' + res.findings.length + '）</h3>');
-    if (!res.findings.length) {
-      out.push('<div class="ok-banner">未命中任何规则。</div>');
-    } else {
-      for (const f of res.findings) {
-        out.push('<div class="finding ' + esc(f.severity) + '">');
-        out.push('<h4>' + sevBadge(f.severity) + '<span>' + esc(f.title) + '</span><span class="rule">' + esc(f.ruleId) + ' · L' + esc(f.line) + (f.dynamic ? " · 动态" : "") + '</span></h4>');
-        out.push('<p>' + esc(f.message) + '</p>');
-        if (f.advice) out.push('<p class="advice">建议：' + esc(f.advice) + '</p>');
-        if (f.snippet) out.push('<pre>' + esc(f.snippet) + '</pre>');
-        out.push('</div>');
-      }
-    }
-    $("reviewOut").innerHTML = out.join("");
+    const note = res.note ? '<p class="hint" style="margin:0 0 9px">' + esc(res.note) + '</p>' : "";
+    $("reviewOut").innerHTML =
+      renderQualityCard(m, res) +
+      note +
+      '<div class="review-findings">' +
+        '<div class="review-toolbar" id="reviewToolbar"></div>' +
+        '<div class="review-list" id="reviewList"></div>' +
+      '</div>';
+    renderFindings();
+    animateQualityGauges();
+    $("btnCopyReview").disabled = false;
+    $("btnExportReview").disabled = false;
   }
+
+  function reviewMarkdown(res, reviewId) {
+    const m = res.metrics || {};
+    const st = m.stats || {};
+    const lines = [
+      "# SQL 评审 — " + (state.reviewFile || "inline.sql"),
+      "",
+      "- 质量分：" + (m.quality != null ? m.quality : "—") + "（" + (m.grade || "—") + " " + (m.gradeLabel || "") + "）",
+      "- 风险分：" + (res.score != null ? res.score : m.risk != null ? m.risk : "—") + "（" + (SEV_LABEL[res.level || m.riskLevel] || res.level || m.riskLevel || "—") + "）",
+      "- 结论：" + (m.verdict || "—"),
+      "- 规模：" + (st.lines || 0) + " 行 / " + (st.statements || res.statements || 0) + " 语句 / " + (st.tables || (res.tables ? res.tables.length : 0)) + " 表",
+    ];
+    if (m.density) lines.push("- 命中密度：" + m.density + " / 百行");
+    if (reviewId) lines.push("- AI 续查 ID：" + reviewId);
+    if (Array.isArray(m.dimensions) && m.dimensions.length) {
+      lines.push("", "## 六维健康度", "", "| 维度 | 分数 | 命中 |", "|---|---:|---:|");
+      m.dimensions.forEach((d) => lines.push("| " + d.label + " | " + (d.applicable === false ? "—" : d.score) + " | " + (d.applicable === false ? "未校验" : (d.hits || 0) + " 项") + " |"));
+    }
+    const findings = Array.isArray(res.findings) ? res.findings : [];
+    lines.push("", "## 命中（" + findings.length + "）", "");
+    if (!findings.length) {
+      lines.push("未命中任何规则。");
+    } else {
+      findings.forEach((f) => {
+        lines.push("### [" + (SEV_LABEL[f.severity] || f.severity) + "] " + f.ruleId + " " + f.title + (f.line ? " · L" + f.line : ""));
+        lines.push("", f.message);
+        if (f.advice) lines.push("", "建议：" + f.advice);
+        if (f.snippet) lines.push("", "```sql", f.snippet, "```");
+        lines.push("");
+      });
+    }
+    return lines.join("\n");
+  }
+
+  async function copyText(text, okMsg) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); } catch (_) { /* 宿主不支持时仍给出提示，不阻断评审 */ }
+      ta.remove();
+    }
+    toast(okMsg || "已复制");
+  }
+
+  function exportReview() {
+    if (!state.reviewResult) return;
+    const md = reviewMarkdown(state.reviewResult, state.reviewId);
+    const base = String(state.reviewFile || "sql-review.sql").replace(/\.sql$/i, "") || "sql-review";
+    const name = base + "-review.md";
+    if (window.dbxPlugin && typeof window.dbxPlugin.saveFile === "function") {
+      Promise.resolve(window.dbxPlugin.saveFile({ suggestedName: name, content: md }))
+        .then(() => toast("评审报告已保存"))
+        .catch((e) => toast("导出失败：" + (e && e.message ? e.message : e)));
+      return;
+    }
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  function locateSqlLine(line) {
+    const ta = $("sql");
+    const text = ta.value || "";
+    const n = Math.max(1, Math.floor(Number(line) || 1));
+    let start = 0;
+    for (let i = 1; i < n; i++) {
+      const next = text.indexOf("\n", start);
+      if (next < 0) { start = text.length; break; }
+      start = next + 1;
+    }
+    let end = text.indexOf("\n", start);
+    if (end < 0) end = text.length;
+    ta.focus();
+    ta.setSelectionRange(start, end);
+    const lineHeight = parseFloat(getComputedStyle(ta).lineHeight) || 20;
+    ta.scrollTop = Math.max(0, (n - 1) * lineHeight - ta.clientHeight / 3);
+    toast("已定位到第 " + n + " 行");
+  }
+
+  $("btnCopyReview").addEventListener("click", () => {
+    if (!state.reviewResult) return;
+    copyText(reviewMarkdown(state.reviewResult, state.reviewId), "评审摘要已复制");
+  });
+  $("btnExportReview").addEventListener("click", exportReview);
+  $("reviewOut").addEventListener("click", (e) => {
+    const filter = e.target.closest("[data-filter]");
+    if (filter) {
+      state.reviewFilter = filter.dataset.filter || "all";
+      renderFindings();
+      return;
+    }
+    const copyFinding = e.target.closest("[data-finding-copy]");
+    if (copyFinding && state.reviewResult) {
+      const f = (state.reviewResult.findings || [])[Number(copyFinding.dataset.findingCopy)];
+      if (!f) return;
+      copyText((f.title || f.ruleId) + (f.line ? "（L" + f.line + "）" : "") + "\n" + (f.message || "") + (f.advice ? "\n建议：" + f.advice : ""), "修复建议已复制");
+      return;
+    }
+    const copyInline = e.target.closest("[data-copy-text]");
+    if (copyInline) {
+      copyText(copyInline.dataset.copyText || "", "AI 续查 ID 已复制");
+      return;
+    }
+    const locate = e.target.closest("[data-finding-line]");
+    if (locate) locateSqlLine(Number(locate.dataset.findingLine));
+  });
+
 
   // ---------------- 批量
   function readFileText(file) {
@@ -507,31 +951,113 @@
       r.readAsText(file);
     });
   }
+  function formatBytes(n) {
+    const v = Number(n) || 0;
+    if (v < 1024) return v + " B";
+    if (v < 1024 * 1024) return (v / 1024).toFixed(1) + " KB";
+    return (v / 1024 / 1024).toFixed(1) + " MB";
+  }
+  function batchFileKey(file) {
+    return String(file.webkitRelativePath || file.name || "").replace(/\\/g, "/").toLowerCase();
+  }
+  function batchLineCount(text) {
+    return text ? String(text).split("\n").length : 0;
+  }
+  function updateBatchFiles() {
+    const n = state.files.length;
+    $("batchFileCount").textContent = n;
+    $("batchFilePanel").hidden = n === 0;
+    $("batchFileMeta").textContent = n ? "已选 " + n + " 个文件" : "尚未选择文件";
+    $("btnBatchRun").disabled = n === 0;
+    const dedup = $("batchDedupNote");
+    dedup.hidden = !state.dupCount;
+    dedup.textContent = state.dupCount ? "已跳过 " + state.dupCount + " 个重复文件" : "";
+    $("batchFileList").innerHTML = state.files.map((f, i) =>
+      '<div class="batch-file-row">' +
+        '<span class="name" title="' + esc(f.path) + '">' + esc(f.path) + '</span>' +
+        '<span class="meta">' + batchLineCount(f.content) + ' 行</span>' +
+        '<span class="meta size">' + formatBytes(f.size) + '</span>' +
+        '<button data-batch-remove="' + i + '" title="从本批移除">移除</button>' +
+      '</div>').join("");
+  }
   async function addFiles(fileList) {
     const arr = Array.from(fileList || []).filter((f) => /\.sql$/i.test(f.name) || f.type === "");
     if (!arr.length) { toast("没有找到 .sql 文件"); return; }
     showErr("batchErr", "");
+    const known = new Set(state.files.map((f) => f.path.toLowerCase()));
     const payload = [];
+    let skipped = 0;
     for (const f of arr) {
-      try { payload.push({ path: f.name, content: await readFileText(f) }); }
-      catch (e) { toast("读取失败：" + f.name); }
+      const path = String(f.webkitRelativePath || f.name || "").replace(/\\/g, "/");
+      const key = batchFileKey(f);
+      if (!key || known.has(key)) { skipped++; continue; }
+      try {
+        const content = await readFileText(f);
+        payload.push({ path, content, size: f.size });
+        known.add(key);
+      } catch (e) {
+        toast("读取失败：" + f.name);
+      }
     }
-    if (!payload.length) return;
-    state.files = state.files.concat(payload);
-    $("btnBatchRun").disabled = false;
-    toast("已载入 " + payload.length + " 个文件");
+    if (skipped) state.dupCount += skipped;
+    if (payload.length) state.files = state.files.concat(payload);
+    updateBatchFiles();
+    if (!payload.length && skipped) {
+      toast("已跳过 " + skipped + " 个重复文件");
+      return;
+    }
+    let msg = "已载入 " + payload.length + " 个文件";
+    if (skipped) msg += "，跳过 " + skipped + " 个重复文件";
+    if (payload.length) toast(msg);
   }
+  $("btnPickBatchFiles").addEventListener("click", () => $("fileInput").click());
   $("fileInput").addEventListener("change", (e) => { addFiles(e.target.files); e.target.value = ""; });
+  $("btnBatchFilesClear").addEventListener("click", () => {
+    state.files = [];
+    state.dupCount = 0;
+    updateBatchFiles();
+  });
+  $("batchFileList").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-batch-remove]");
+    if (!btn) return;
+    const idx = Number(btn.dataset.batchRemove);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= state.files.length) return;
+    state.files.splice(idx, 1);
+    updateBatchFiles();
+  });
+  updateBatchFiles();
 
   const dz = $("dropzone");
-  ["dragenter", "dragover"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add("over"); }));
-  ["dragleave", "drop"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove("over"); }));
-  dz.addEventListener("drop", (e) => { if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files); });
-  // 整页兜底：拖到界面其它位置也能接住
-  ["dragover", "drop"].forEach((ev) => document.body.addEventListener(ev, (e) => {
+  ["dragenter", "dragover"].forEach((ev) => dz.addEventListener(ev, (e) => {
+    if (!hasFiles(e)) return;
     e.preventDefault();
-    if (ev === "drop" && e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
+    e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    dz.classList.add("over");
   }));
+  dz.addEventListener("dragleave", (e) => {
+    if (!dz.contains(e.relatedTarget)) dz.classList.remove("over");
+  });
+  dz.addEventListener("drop", (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dz.classList.remove("over");
+    addFiles([...(e.dataTransfer.files || [])]);
+  });
+
+  // 整页兜底：评审页单文件直接载入，多文件或在批量页时进入批量队列。
+  document.body.addEventListener("dragover", (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+  });
+  document.body.addEventListener("drop", (e) => {
+    if (!hasFiles(e)) return;
+    if (e.target.closest && e.target.closest("#dropzone")) return;
+    e.preventDefault();
+    handleSqlFiles(e.dataTransfer.files, !$("tab-batch").hidden);
+  });
 
   $("btnBatchRun").addEventListener("click", async () => {
     if (!state.files.length) { showErr("batchErr", "请先选择 .sql 文件。"); return; }
@@ -576,14 +1102,14 @@
     const s = report.summary || {};
     const m = s.quality || {};
     const out = [];
-    out.push('<div class="metric">');
-    out.push('<div class="box"><div class="num">' + esc(s.files) + '</div><div class="cap">文件</div></div>');
-    out.push('<div class="box"><div class="num">' + esc(m.quality != null ? m.quality : "—") + '</div><div class="cap">质量分</div></div>');
-    out.push('<div class="box"><div class="num">' + esc(m.grade || "—") + '</div><div class="cap">' + esc(m.gradeLabel || "") + '</div></div>');
-    out.push('<div class="box"><div class="num">' + esc(s.failing) + '</div><div class="cap">待改进</div></div>');
-    out.push('<div class="box"><div class="num">' + esc(s.passing) + '</div><div class="cap">通过</div></div>');
-    out.push('</div>');
-    if (m.verdict) out.push('<p style="margin:10px 0 0"><b>' + esc(m.verdict) + '</b></p>');
+    out.push(renderQualityCard(m, null, {
+      compact: true,
+      extraStats: [["文件", s.files], ["语句", s.statements], ["通过", s.passing], ["待改进", s.failing]],
+    }));
+    const grades = s.grades || {};
+    const gradeChips = ["A+", "A", "B", "C", "D", "E"].filter((g) => grades[g]).map((g) =>
+      '<span class="pill" style="color:' + gradeColor(g) + '">' + esc(g) + ' · ' + esc(grades[g]) + ' 个</span>');
+    if (gradeChips.length) out.push('<div class="row" style="margin:0 0 8px">' + gradeChips.join("") + '</div>');
     if (report.note) out.push('<p class="hint">' + esc(report.note) + '</p>');
 
     if (report.consistency && report.consistency.length) {
@@ -602,11 +1128,12 @@
       out.push('<table><thead><tr><th>文件</th><th>版本</th><th class="num">语句</th><th class="num">质量</th><th>等级</th><th>结果</th></tr></thead><tbody>');
       for (const f of report.files) {
         out.push('<tr><td>' + esc(f.file) + '</td><td>' + esc(f.version || "—") + '</td><td class="num">' + esc(f.statements) +
-          '</td><td class="num">' + esc(f.quality) + '</td><td>' + esc(f.grade) + '</td><td>' + sevBadge(f.level) + '</td></tr>');
+          '</td><td class="num">' + esc(f.quality) + '</td><td><b style="color:' + gradeColor(f.grade) + '">' + esc(f.grade) + '</b></td><td>' + sevBadge(f.level) + '</td></tr>');
       }
       out.push('</tbody></table>');
     }
     $("batchOut").innerHTML = out.join("");
+    animateQualityGauges();
   }
 
   // ---------------- 规则
