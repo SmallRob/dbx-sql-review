@@ -36,32 +36,32 @@
     {
       "target": "darwin-arm64",
       "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.33/io.github.smallrob.sql-review-0.1.33-darwin-arm64.dbxp",
-      "sha256": "25b1eb2122b68af4ada9b858d8b87109e8044a3cd23d040c9f421e0e2ad21950",
-      "size": 2465675
+      "sha256": "d74ec9b58389076d1812dd813fb0cb8d04999a44e044c98ccb2d886cc197e061",
+      "size": 2109056
     },
     {
       "target": "darwin-x64",
       "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.33/io.github.smallrob.sql-review-0.1.33-darwin-x64.dbxp",
-      "sha256": "789947962a4942a09b5900eda9bc6a8d29b0813cf2bb43eed0fa0fef41ff1d1d",
-      "size": 2619085
+      "sha256": "12d6c46f287b33b3068a406025915764c42bd3837ea02a2936a09a3a881393dc",
+      "size": 2212068
     },
     {
       "target": "linux-arm64",
       "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.33/io.github.smallrob.sql-review-0.1.33-linux-arm64.dbxp",
-      "sha256": "89096d81176d4f185429f875df20d25a4f05907282e4e45b72ccf8a5dec5dfe1",
-      "size": 2353735
+      "sha256": "364c7189689e84f75dd2f2e3aa3bfb3a1ea27329bf731591ad73db5cb59672ba",
+      "size": 2087700
     },
     {
       "target": "linux-x64",
       "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.33/io.github.smallrob.sql-review-0.1.33-linux-x64.dbxp",
-      "sha256": "dbb5fe76917af73c1ac603a3c387dfc4c3b0d6362cdbb2f7c20c9a55a54241d9",
-      "size": 2552149
+      "sha256": "90295cdc086cad5d05385ec152145b69de91c85162073cf4939198aa9ad8e499",
+      "size": 2224147
     },
     {
       "target": "windows-x64",
       "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.33/io.github.smallrob.sql-review-0.1.33-windows-x64.dbxp",
-      "sha256": "4dc917e7d02733f57a8dd1951162071ade32109125a2987b612eb6e182cc9832",
-      "size": 2600606
+      "sha256": "f9d2b2e10d1d94c8dddd8e903628e0627d74db7b2f564eacc48b222907a549dd",
+      "size": 2283122
     }
   ]
 }
