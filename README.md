@@ -64,28 +64,48 @@ timezone-less timestamps and `CASCADE`. All four dialects remain purely static.
 
 ## Interface
 
-Four tabs:
+Five tabs:
 
 - **Review** — open a `.sql` file, paste SQL, or drop a single file. A quality gauge
   summarizes score/grade/risk, six dimensions show hit counts, and findings can be
-  filtered, expanded, copied or located back in the editor.
+  filtered, expanded, copied or located back in the editor. Matched rules also pull
+  in **related best practices** at the bottom of the result, with copyable examples.
 - **Batch** — drop many scripts at once. The selected-file list shows line counts,
   sizes, deduplication, per-file removal and clear; after review, a compact gauge
   and grade distribution summarize the directory, ready for Markdown export.
 - **Rules** — browse all rules by category; toggle and re-level each one.
+- **Best practices** — a rule-like catalog of 62 optimization entries organized by
+  dialect and category (index, query, schema, transaction, memory, config,
+  architecture, diagnosis). Each entry carries rationale, recommended practice,
+  anti-pattern, before/after SQL and linked rule IDs. Filter by dialect, category
+  or free-text search; jump here from a review suggestion.
 - **Records** — review history and hash-chain verification.
+
+### Best-practice catalog
+
+Sourced from ASDM's
+[MySQL Database Performance Best Practices](https://asdm-platform.leansoftx.com/portal/practices/29)
+and rewritten for each engine's own mechanics. All 16 general entries apply to every
+dialect; engine-specific entries are routed per dialect (MySQL 34, PostgreSQL 26,
+SQL Server 26, SQLite 24 entries when including the general ones). Nothing here
+connects to a database or executes SQL — it is a static, readable knowledge base
+that is cross-linked to the review rules via `ruleIds`. During a single review,
+`suggestedPractices` is populated from the hit rules and attached to the result.
 
 ## Built-in AI / MCP tools
 
-`external_tools` and `ai_tools` are enabled, exposing four read-only tools to DBX's
+`external_tools` and `ai_tools` are enabled, exposing five read-only tools to DBX's
 built-in agent and MCP clients:
 
-- `sql_review` — review SQL and return findings plus a `reviewId`;
+- `sql_review` — review SQL and return findings plus a `reviewId` and related best
+  practices (`result.suggestedPractices`);
 - `sql_review_result` — retrieve the latest or selected review, with severity/rule
   filters and pagination;
 - `sql_optimize` — return structured optimization actions for Agent-generated,
   reviewable patches (`changed=false`; no unproven automatic rewrite);
-- `sql_rules` — list the rule catalog, optionally filtered by dialect.
+- `sql_rules` — list the rule catalog, optionally filtered by dialect;
+- `sql_best_practices` — list the best-practice catalog by dialect/category, or pass
+  `sql` to get only the practices relevant to that SQL's hits.
 
 The last 32 single reviews are kept in sidecar memory only. The original SQL never
 enters the review-result response and is not written to disk. All tools preserve

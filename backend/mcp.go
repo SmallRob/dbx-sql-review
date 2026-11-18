@@ -76,6 +76,17 @@ func mcpTools() []mcpToolSpec {
 				"dialect": propStr("可选：mysql / sqlite / sqlserver / postgres；留空返回全部"),
 			}),
 		},
+		{
+			Name: "sql_best_practices", Access: "read", Title: "最佳实践",
+			Description: "返回按 SQL 方言组织的最佳实践条目（分类、原理、推荐做法、反例、正反 SQL 片段）；整理自 ASDM《MySQL 数据库性能优化最佳实践》并适配 Postgres / SQL Server / SQLite。可按方言与分类过滤，或传入 SQL 只返回与命中相关的建议。不连接数据库、不执行 SQL。",
+			Schema: obj(map[string]any{
+				"dialect":     propStr("可选：mysql / sqlite / sqlserver / postgres；留空返回全部方言"),
+				"category":    propStr("可选：index / query / schema / transaction / memory / config / architecture / diagnosis"),
+				"sql":         propStr("可选：传入 SQL 时，仅返回与该 SQL 命中规则相关的最佳实践"),
+				"file":        propStr("可选：文件名，用于方言提示，可省略"),
+				"dialectHint": propStr("可选：与 dialect 等价的别名，方便自然语言调用"),
+			}),
+		},
 	}
 }
 
@@ -194,6 +205,39 @@ func (p *plugin) dispatchTool(name string, args map[string]any) (any, *dbxplugin
 		}
 	}
 	switch name {
+	case "sql_best_practices":
+		dialectRaw := getStr("dialect")
+		if dialectRaw == "" {
+			dialectRaw = getStr("dialectHint")
+		}
+		filter := NormalizeDialect(dialectRaw)
+		if dialectRaw != "" && filter == "" {
+			return nil, dbxpluginsdk.NewError(-32602, "dialect 仅支持 mysql / sqlite / sqlserver / postgres")
+		}
+		category := getStr("category")
+		sqlText := getStr("sql")
+		if strings.TrimSpace(sqlText) != "" {
+			// 传入 SQL：只返回与命中规则相关的建议。
+			file := getStr("file")
+			if file == "" {
+				file = "inline.sql"
+			}
+			d := resolveDialect(filter, sqlText, file)
+			res := AnalyzeSQL(sqlText, file, p.cfg().Rules, AnalyzeOptions{Dialect: d, NoUseRequired: true})
+			return map[string]any{
+				"version": pluginVersion, "dialect": string(d), "mode": "suggest",
+				"total":     len(SuggestPractices(res.Findings, d)),
+				"practices": SuggestPractices(res.Findings, d),
+				"ruleIds":   collectRuleIDs(res.Findings),
+			}, nil
+		}
+		items := Practices(filter, category)
+		return map[string]any{
+			"version": pluginVersion, "mode": "catalog", "total": len(items),
+			"practices": items, "categories": PracticeCategories(filter),
+			"dialects": []string{"mysql", "postgres", "sqlserver", "sqlite"},
+		}, nil
+
 	case "sql_rules":
 		c := p.cfg()
 		filter := NormalizeDialect(getStr("dialect"))
@@ -235,6 +279,7 @@ func (p *plugin) dispatchTool(name string, args map[string]any) (any, *dbxplugin
 		dialect := resolveDialect(NormalizeDialect(getStr("dialect")), sqlText, file)
 		opts := AnalyzeOptions{Migration: migration, Dialect: dialect, NoUseRequired: true}
 		res := AnalyzeSQL(sqlText, file, cfg.Rules, opts)
+		res.withPractices()
 		appendAudit("review", file, res.Level, res.Score, len(res.Findings), "ai_tool")
 		note := "静态词法分析：未连接数据库，不执行被评审的 SQL。"
 		review := p.reviews.put(sqlText, file, note, res, opts)

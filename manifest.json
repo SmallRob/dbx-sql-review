@@ -3,9 +3,9 @@
   "manifest_version": 1,
   "id": "io.github.smallrob.sql-review",
   "name": "SQL Review",
-  "version": "0.1.30",
+  "version": "0.1.31",
   "publisher": "smallrob",
-  "description": "静态 SQL 评审台：规则化检查破坏性变更、迁移规范、性能与结构质量，不连接数据库、不执行被评审的 SQL。",
+  "description": "静态 SQL 评审台：规则化评审破坏性变更、迁移规范、性能与结构质量；附按方言组织的最佳实践库，评审时联动推荐优化建议。不连库、不执行 SQL。",
   "icon": "assets/plugin.svg",
   "source": "https://github.com/SmallRob/dbx-sql-review",
   "homepage": "https://github.com/SmallRob/dbx-sql-review",
@@ -84,7 +84,7 @@
     {
       "type": "mcp",
       "id": "io.github.smallrob.sql-review.mcp",
-      "description": "把只读的静态 SQL 评审、结果读取、优化建议与规则清单暴露给 MCP 客户端和内置 AI。四个工具全部为 read，支持 MySQL、SQLite、SQL Server 与 PostgreSQL，不连接数据库、不执行被评审的 SQL。",
+      "description": "把只读的静态 SQL 评审、结果读取、优化建议、规则清单与最佳实践库暴露给 MCP 客户端和内置 AI。五个工具全部为 read，支持 MySQL、SQLite、SQL Server 与 PostgreSQL，不连接数据库、不执行被评审的 SQL。",
       "external_tools": true,
       "ai_tools": true,
       "toolsets": [
@@ -110,6 +110,10 @@
         "sql_rules": {
           "access": "read",
           "toolset": "review"
+        },
+        "sql_best_practices": {
+          "access": "read",
+          "toolset": "review"
         }
       }
     }
@@ -117,7 +121,7 @@
   "localizations": {
     "zh-CN": {
       "name": "SQL 评审台",
-      "description": "静态 SQL 评审台：规则化检查破坏性变更、迁移规范、性能与结构质量，不连接数据库、不执行被评审的 SQL。",
+      "description": "静态 SQL 评审台：规则化评审破坏性变更、迁移规范、性能与结构质量；附按方言组织的最佳实践库，评审时联动推荐优化建议。不连库、不执行 SQL。",
       "contributions": {
         "io.github.smallrob.sql-review.workbench": {
           "label": "SQL 评审台",
