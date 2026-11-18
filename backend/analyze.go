@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
 	"strings"
@@ -257,14 +258,36 @@ func (a *analyzer) finalize() []Finding {
 }
 
 func scoreOf(fs []Finding) (int, string) {
-	score := 0
 	level := "pass"
+	// 同一规则重复命中采用递减权重，避免「一条低置信度规则刷满整份报告」：
+	//   第 1 次命中 = 基础权重；其后每次 = 基础权重 × 0.25；单规则累计封顶 2× 基础权重。
+	// 不这么做时，一份迁移里的 6 条「ALTER 未声明算法」就能独立贡献 6×20=120，
+	// 把质量分压到 0，而其余五个维度明明都是满分，报告失去区分度。
+	// 不同规则之间仍线性累加：多个独立问题确实应该更糟。
+	seen := map[string]int{}
+	acc := map[string]float64{}
+	total := 0.0
 	for _, f := range fs {
-		score += severityWeight[f.Severity]
 		if severityRank[f.Severity] > severityRank[level] {
 			level = f.Severity
 		}
+		w := float64(severityWeight[f.Severity])
+		add := w
+		if seen[f.RuleID] > 0 {
+			add = w * 0.25
+		}
+		cap := 2 * w
+		if acc[f.RuleID]+add > cap {
+			add = cap - acc[f.RuleID]
+		}
+		if add < 0 {
+			add = 0
+		}
+		acc[f.RuleID] += add
+		total += add
+		seen[f.RuleID]++
 	}
+	score := int(math.Round(total))
 	if score > 100 {
 		score = 100
 	}

@@ -121,12 +121,16 @@ var ruleCatalog = []RuleMeta{
 		DefaultSeverity: "high", Dialects: []string{"mysql"}, Optional: true},
 
 	// ---- 性能
+	// SQL020/SQL021 是「静态提示」类规则：插件不连库、拿不到真实行数，
+	// 无法判定某次 ALTER 是否真的会锁表。MySQL 8.0 的 ADD COLUMN（含默认值）
+	// 与 ADD INDEX 大多走 INSTANT/INPLACE，风险远低于破坏性变更。
+	// 因此按 medium/low 计，与 critical/high 的确定性缺陷区分开。
 	{ID: "SQL020", Title: "ALTER 未声明算法", Category: catPerformance,
-		Help:   "结构性 ALTER 未声明 ALGORITHM/LOCK 时，在大表上可能锁表或长时间拷贝。",
-		Advice: "显式 ALGORITHM=INPLACE, LOCK=NONE（或 INSTANT），并在低峰执行。", DefaultSeverity: "high", Dialects: []string{"mysql"}},
+		Help:   "结构性 ALTER 未声明 ALGORITHM/LOCK 时，在大表上可能锁表或长时间拷贝；静态分析无法确认实际影响。",
+		Advice: "显式 ALGORITHM=INPLACE, LOCK=NONE（或 INSTANT），并在低峰执行。", DefaultSeverity: "medium", Dialects: []string{"mysql"}},
 	{ID: "SQL021", Title: "新增索引未声明在线方式", Category: catPerformance,
-		Help:   "新建索引若未声明 LOCK=NONE，可能阻塞写入。",
-		Advice: "加 ALGORITHM=INPLACE, LOCK=NONE；超大表用 gh-ost/pt-osc。", DefaultSeverity: "medium", Dialects: []string{"mysql"}},
+		Help:   "新建索引若未声明 LOCK=NONE，可能阻塞写入；静态分析无法确认实际影响。",
+		Advice: "加 ALGORITHM=INPLACE, LOCK=NONE；超大表用 gh-ost/pt-osc。", DefaultSeverity: "low", Dialects: []string{"mysql"}},
 	{ID: "SQL022", Title: "SELECT *", Category: catPerformance,
 		Help:   "SELECT * 会随表结构变化返回多余列，破坏覆盖索引。",
 		Advice: "显式列出需要的列。", DefaultSeverity: "low"},

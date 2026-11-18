@@ -22,7 +22,7 @@ import (
 	dbxpluginsdk "github.com/t8y2/dbx/plugins/sdk/go/dbx-plugin-sdk"
 )
 
-var pluginVersion = "0.1.31"
+var pluginVersion = "0.1.32"
 
 const pluginID = "io.github.smallrob.sql-review"
 

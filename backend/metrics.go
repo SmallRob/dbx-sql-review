@@ -34,33 +34,33 @@ type DimHealth struct {
 
 // QualityStats 是「这段 SQL 到底有多大」的客观描述，本身不带褒贬。
 type QualityStats struct {
-	Lines          int `json:"lines"`
-	Statements     int `json:"statements"`
-	DDL            int `json:"ddl"`
-	DML            int `json:"dml"`
-	Query          int `json:"query"`
-	Txn            int `json:"txn"`
-	Tables         int `json:"tables"`
-	Indexes        int `json:"indexes"`
-	Joins          int `json:"joins"`
-	Subqueries     int `json:"subqueries"`
-	MaxNesting     int `json:"maxNesting"`
-	Dynamic        int `json:"dynamic"`
-	Alter          int `json:"alter"`
-	CreateTable    int `json:"createTable"`
-	UnfilteredDML  int `json:"unfilteredDml"`
+	Lines         int `json:"lines"`
+	Statements    int `json:"statements"`
+	DDL           int `json:"ddl"`
+	DML           int `json:"dml"`
+	Query         int `json:"query"`
+	Txn           int `json:"txn"`
+	Tables        int `json:"tables"`
+	Indexes       int `json:"indexes"`
+	Joins         int `json:"joins"`
+	Subqueries    int `json:"subqueries"`
+	MaxNesting    int `json:"maxNesting"`
+	Dynamic       int `json:"dynamic"`
+	Alter         int `json:"alter"`
+	CreateTable   int `json:"createTable"`
+	UnfilteredDML int `json:"unfilteredDml"`
 }
 
 // QualityMetrics 是回给 UI 的完整质量画像。
 type QualityMetrics struct {
-	Quality    int         `json:"quality"`
-	Grade      string      `json:"grade"`
-	GradeLabel string      `json:"gradeLabel"`
-	Verdict    string      `json:"verdict"`
-	Risk       int         `json:"risk"`
-	RiskLevel  string      `json:"riskLevel"`
-	Density    float64     `json:"density"` // 每 100 行命中数
-	Dimensions []DimHealth `json:"dimensions"`
+	Quality    int          `json:"quality"`
+	Grade      string       `json:"grade"`
+	GradeLabel string       `json:"gradeLabel"`
+	Verdict    string       `json:"verdict"`
+	Risk       int          `json:"risk"`
+	RiskLevel  string       `json:"riskLevel"`
+	Density    float64      `json:"density"` // 每 100 行命中数
+	Dimensions []DimHealth  `json:"dimensions"`
 	Stats      QualityStats `json:"stats"`
 }
 
@@ -236,7 +236,11 @@ func gradeOf(quality int, worstLevel string) (string, string, string) {
 	if worstLevel == "critical" {
 		return "E", "不合格", "禁止发布：含严重级（不可逆）变更"
 	}
-	if worstLevel == "high" && severityRank[gradeToRank(grade)] > severityRank["medium"] {
+	// 高级封顶：有 high 命中时，最多只能给到 C。
+	// 注意方向——只把「好于 C」的等级（A+/A/B）压到 C；
+	// 分数本身已经是 C/D/E 时保持原等级，绝不能把低分往上抬成 C。
+	// gradeToRank: A+/A→info(1), B→low(2), C→medium(3), D→high(4), E→critical(5)。
+	if worstLevel == "high" && severityRank[gradeToRank(grade)] < severityRank["medium"] {
 		return "C", "需改进", "修复高风险项后发布"
 	}
 	return grade, label, verdict
@@ -318,8 +322,8 @@ func AggregateQuality(results []*Result, consistency []Finding) QualityMetrics {
 		}
 	}
 	m := QualityMetrics{
-		Quality: int(math.Round(qSum / float64(totalW))),
-		Stats:   stats,
+		Quality:   int(math.Round(qSum / float64(totalW))),
+		Stats:     stats,
 		RiskLevel: worst,
 	}
 	m.Risk = 100 - m.Quality
