@@ -307,6 +307,46 @@
     .rule-row .rsev { flex-basis: 88px; }
     .rule-row .rtoggle span { display: none; }
   }
+  /* 最佳实践卡片：分类/方言标签 + 原理/推荐/反例 + 正反代码片段。 */
+  .bp-toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .bp-toolbar .field { flex: 0 0 180px; }
+  .bp-search { flex: 1 1 220px; min-width: 160px; }
+  .bp-card {
+    border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
+    margin-bottom: 10px; background: var(--panel);
+  }
+  .bp-card .bp-head { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+  .bp-card .bp-head h3 { margin: 0; font-size: 14px; font-weight: 650; flex: 1 1 260px; }
+  .bp-card .bp-id { font: 11px ui-monospace, Menlo, Consolas, monospace; color: var(--muted); }
+  .bp-card .bp-chips { display: flex; gap: 5px; flex-wrap: wrap; }
+  .chip {
+    display: inline-block; font-size: 10.5px; line-height: 1.5; padding: 1px 8px;
+    border: 1px solid var(--line); border-radius: 999px; color: var(--muted); white-space: nowrap;
+  }
+  .chip.dia { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+  .chip.cat { color: var(--low); border-color: color-mix(in srgb, var(--low) 45%, var(--line)); }
+  .bp-card .bp-summary { margin: 8px 0 0; font-size: 13px; color: var(--fg); }
+  .bp-card .bp-body { margin-top: 8px; font-size: 12.5px; }
+  .bp-card .bp-body p { margin: 5px 0; }
+  .bp-card .bp-k { color: var(--muted); font-weight: 600; margin-right: 4px; }
+  .bp-code { margin: 6px 0 0; padding: 8px 10px; border-radius: 7px; font: 12px/1.55 ui-monospace, Menlo, Consolas, monospace;
+    white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--line); background: var(--bg); }
+  .bp-code.good { border-left: 3px solid var(--pass); }
+  .bp-code.bad { border-left: 3px solid var(--critical); }
+  .bp-card details { margin-top: 8px; }
+  .bp-card details summary { cursor: pointer; font-size: 12px; color: var(--accent); }
+  .bp-card .bp-rules { margin-top: 7px; font-size: 11px; color: var(--muted); }
+  .bp-card .bp-rules b { color: var(--muted); font-weight: 600; }
+  /* 评审结果里的「相关最佳实践」区块 */
+  .bp-sug { margin: 14px 0 4px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .bp-sug > h4 { margin: 0 0 9px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+  .bp-sug .bp-card { padding: 9px 12px; margin-bottom: 8px; }
+  .bp-sug .bp-card .bp-summary { font-size: 12.5px; }
+  .bp-empty { color: var(--muted); font-size: 12.5px; }
+  #tab-practices:not([hidden]) { display: flex; flex-direction: column; height: 100%; }
+  #tab-practices > .card { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+  #tab-practices .card-body { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+  #tab-practices .scroll-y { flex: 1 1 auto; min-height: 160px; max-height: none; }
   .dropzone { border: 2px dashed var(--line); border-radius: 10px; padding: 26px; text-align: center; color: var(--muted); font-size: 13px; }
   .dropzone.over { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
   .batch-files { margin-top: 10px; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
@@ -382,6 +422,7 @@
   <button class="tab active" data-tab="review">评审</button>
   <button class="tab" data-tab="batch">批量目录</button>
   <button class="tab" data-tab="rules">规则</button>
+  <button class="tab" data-tab="practices">最佳实践</button>
   <button class="tab" data-tab="audit">记录</button>
 </nav>
 
@@ -506,6 +547,36 @@
     </div>
   </section>
 
+  <!-- ============ 最佳实践 ============ -->
+  <section class="page" id="tab-practices" hidden>
+    <div class="card">
+      <header><h2>最佳实践</h2></header>
+      <div class="card-body">
+        <div class="err" id="practicesErr"></div>
+        <p class="hint" style="margin:0 0 12px">
+          按 SQL 方言组织的优化条目，整理自 ASDM《MySQL 数据库性能优化最佳实践》并适配 PostgreSQL、SQL Server 与 SQLite。
+          每条含原理、推荐做法与正反代码示例；在「评审」页命中规则时，结果底部会联动推荐相关条目。
+        </p>
+        <div class="bp-toolbar">
+          <label class="field" style="flex:0 0 170px">
+            <select id="bpDialect">
+              <option value="">所有方言</option>
+              <option value="mysql">MySQL</option>
+              <option value="postgres">PostgreSQL</option>
+              <option value="sqlserver">SQL Server</option>
+              <option value="sqlite">SQLite</option>
+            </select>
+          </label>
+          <input class="bp-search" id="bpSearch" type="search" placeholder="搜索标题、摘要、标签…" />
+          <span class="spacer"></span>
+          <span class="pill" id="bpCount"></span>
+        </div>
+        <div class="tabs-sub" id="bpCats"></div>
+        <div class="scroll-y" id="bpList"></div>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ 记录 ============ -->
   <section class="page" id="tab-audit" hidden>
     <div class="card">
@@ -534,11 +605,13 @@
   const $ = (id) => document.getElementById(id);
   const SEV_LABEL = { critical: "严重", high: "高", medium: "中", low: "低", info: "提示", pass: "通过" };
   const DIALECT_LABEL = { mysql: "MySQL", sqlite: "SQLite", sqlserver: "SQL Server", postgres: "PostgreSQL", mixed: "多方言" };
+  const BP_SEV_LABEL = { critical: "必做", high: "强烈推荐", medium: "推荐", low: "建议", info: "提示" };
 
   const state = {
     rules: [], config: null, batchId: null, report: null, files: [], ruleCat: "all",
     reviewFile: "inline.sql", reviewResult: null, reviewId: null, reviewFilter: "all",
     dupCount: 0,
+    practices: [], bpDialect: "", bpCat: "all", bpQuery: "",
   };
 
   function invoke(method, params, timeoutMs) {
@@ -564,8 +637,9 @@
   // ---------------- tabs
   function activateTab(name) {
     document.querySelectorAll("nav.tabs .tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
-    ["review", "batch", "rules", "audit"].forEach((t) => { $("tab-" + t).hidden = t !== name; });
+    ["review", "batch", "rules", "practices", "audit"].forEach((t) => { $("tab-" + t).hidden = t !== name; });
     if (name === "rules") loadRules();
+    if (name === "practices") loadPractices();
     if (name === "audit") loadAudit();
   }
   document.querySelectorAll("nav.tabs .tab").forEach((btn) => {
@@ -807,6 +881,50 @@
     }).join("");
   }
 
+  function bpCardInner(p, compact) {
+    const chips = ['<span class="chip cat">' + esc(p.categoryLabel || p.category) + '</span>']
+      .concat((p.dialects || []).map((d) => '<span class="chip dia">' + esc(DIALECT_LABEL[d] || d) + '</span>'))
+      .concat((p.tags || []).map((t) => '<span class="chip">' + esc(t) + '</span>'));
+    const sev = p.severity ? '<span class="sev ' + esc(p.severity) + '">' + esc(BP_SEV_LABEL[p.severity] || p.severity) + '</span>' : "";
+    let html = '<div class="bp-head"><h3>' + esc(p.title) + '</h3>' + sev + '</div>' +
+      '<div class="bp-id" style="margin-top:2px">' + esc(p.id) + '</div>' +
+      '<div class="bp-chips" style="margin-top:6px">' + chips.join("") + '</div>' +
+      '<p class="bp-summary">' + esc(p.summary) + '</p>';
+    if (!compact) {
+      html += '<div class="bp-body">';
+      if (p.why) html += '<p><span class="bp-k">原理</span>' + esc(p.why) + '</p>';
+      if (p.recommend) html += '<p><span class="bp-k">推荐</span>' + esc(p.recommend) + '</p>';
+      if (p.avoid) html += '<p><span class="bp-k">避免</span>' + esc(p.avoid) + '</p>';
+      const code = (p.goodSql ? '<div class="bp-code good">' + esc(p.goodSql) + '</div>' : "") +
+        (p.badSql ? '<div class="bp-code bad">' + esc(p.badSql) + '</div>' : "");
+      if (code) html += '<details><summary>查看代码示例</summary>' + code + '</details>';
+      if ((p.ruleIds || []).length) {
+        html += '<div class="bp-rules"><b>关联规则</b> ' + p.ruleIds.map((r) => esc(r)).join(" · ") +
+          (p.source ? ' · 出自 ' + esc(p.source) : "") + '</div>';
+      } else if (p.source) {
+        html += '<div class="bp-rules">出自 ' + esc(p.source) + '</div>';
+      }
+      html += '</div>';
+    }
+    return html;
+  }
+
+  function renderSuggestedPractices(res) {
+    const list = (res && Array.isArray(res.suggestedPractices)) ? res.suggestedPractices : [];
+    if (!list.length) return "";
+    const cards = list.map((p) =>
+      '<div class="bp-card"><div class="bp-head"><span class="bp-id">' + esc(p.id) + '</span>' +
+        '<h3>' + esc(p.title) + '</h3>' +
+        (p.severity ? '<span class="sev ' + esc(p.severity) + '">' + esc(BP_SEV_LABEL[p.severity] || p.severity) + '</span>' : "") +
+        '</div>' +
+        '<p class="bp-summary">' + esc(p.summary) + '</p>' +
+        ((p.recommend) ? '<p class="bp-k" style="margin-top:6px;display:block">推荐：' + esc(p.recommend) + '</p>' : "") +
+        ((p.goodSql) ? '<div class="bp-code good">' + esc(p.goodSql) + '</div>' : "") +
+        '<div class="fact-actions"><button data-goto-practice="' + esc(p.id) + '">在最佳实践页查看完整条目 →</button></div>' +
+      '</div>').join("");
+    return '<div class="bp-sug"><h4>相关最佳实践 <span class="chip">按命中规则联动推荐 · ' + list.length + ' 条</span></h4>' + cards + '</div>';
+  }
+
   function renderResult(res, reviewId) {
     state.reviewResult = res;
     state.reviewId = reviewId || null;
@@ -819,7 +937,8 @@
       '<div class="review-findings">' +
         '<div class="review-toolbar" id="reviewToolbar"></div>' +
         '<div class="review-list" id="reviewList"></div>' +
-      '</div>';
+      '</div>' +
+      renderSuggestedPractices(res);
     renderFindings();
     animateQualityGauges();
     $("btnCopyReview").disabled = false;
@@ -853,6 +972,18 @@
         lines.push("", f.message);
         if (f.advice) lines.push("", "建议：" + f.advice);
         if (f.snippet) lines.push("", "```sql", f.snippet, "```");
+        lines.push("");
+      });
+    }
+    const bps = Array.isArray(res.suggestedPractices) ? res.suggestedPractices : [];
+    if (bps.length) {
+      lines.push("", "## 相关最佳实践（" + bps.length + "）", "");
+      bps.forEach((p) => {
+        lines.push("### " + p.id + " " + p.title + (p.severity ? "（" + (BP_SEV_LABEL[p.severity] || p.severity) + "）" : ""));
+        lines.push("", p.summary || "");
+        if (p.recommend) lines.push("", "推荐：" + p.recommend);
+        if (p.why) lines.push("", "原理：" + p.why);
+        if (p.goodSql) lines.push("", "```sql", p.goodSql, "```");
         lines.push("");
       });
     }
@@ -939,6 +1070,16 @@
     }
     const locate = e.target.closest("[data-finding-line]");
     if (locate) locateSqlLine(Number(locate.dataset.findingLine));
+    const gotoBp = e.target.closest("[data-goto-practice]");
+    if (gotoBp) {
+      state.bpDialect = "";
+      state.bpCat = "all";
+      state.bpQuery = gotoBp.dataset.gotoPractice || "";
+      const sel = $("bpDialect"); if (sel) sel.value = "";
+      const s = $("bpSearch"); if (s) s.value = state.bpQuery;
+      activateTab("practices");
+      return;
+    }
   });
 
 
@@ -1221,6 +1362,56 @@
     } catch (e) { showErr("rulesErr", "重置失败：" + e.message); }
   });
 
+  // ---------------- 最佳实践
+  async function loadPractices() {
+    showErr("practicesErr", "");
+    try {
+      const data = await invoke("practices/list", { dialect: state.bpDialect });
+      state.practices = data.practices || [];
+      renderPractices();
+    } catch (e) {
+      showErr("practicesErr", "读取最佳实践失败：" + e.message);
+    }
+  }
+  function renderPractices() {
+    // 分类栏（含各分类计数）
+    const catBar = ['<button class="' + (state.bpCat === "all" ? "active" : "") + '" data-bpcat="all">全部</button>'];
+    const seen = {};
+    state.practices.forEach((p) => { seen[p.category] = (seen[p.category] || 0) + 1; });
+    ["index", "query", "schema", "transaction", "memory", "config", "architecture", "diagnosis"].forEach((c) => {
+      if (!seen[c]) return;
+      const label = (state.practices.find((p) => p.category === c) || {}).categoryLabel || c;
+      catBar.push('<button class="' + (state.bpCat === c ? "active" : "") + '" data-bpcat="' + c + '">' +
+        esc(label) + ' <span class="chip">' + seen[c] + '</span></button>');
+    });
+    $("bpCats").innerHTML = catBar.join("");
+    $("bpCats").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+      state.bpCat = b.dataset.bpcat; renderPractices();
+    }));
+
+    const q = state.bpQuery.trim().toLowerCase();
+    const list = state.practices.filter((p) => {
+      if (state.bpCat !== "all" && p.category !== state.bpCat) return false;
+      if (!q) return true;
+      const hay = [p.id, p.title, p.summary, p.why, p.recommend, p.source]
+        .concat(p.tags || []).join(" ").toLowerCase();
+      return hay.indexOf(q) >= 0;
+    });
+    $("bpCount").textContent = list.length + " 条最佳实践";
+    if (!list.length) {
+      $("bpList").innerHTML = '<div class="empty">没有匹配的最佳实践条目。</div>';
+      return;
+    }
+    $("bpList").innerHTML = list.map((p) =>
+      '<div class="bp-card">' + bpCardInner(p, false) + '</div>').join("");
+  }
+  $("bpDialect").addEventListener("change", (e) => {
+    state.bpDialect = e.target.value; state.bpCat = "all"; loadPractices();
+  });
+  $("bpSearch").addEventListener("input", (e) => {
+    state.bpQuery = e.target.value; renderPractices();
+  });
+
   // ---------------- 记录
   async function loadAudit() {
     showErr("auditErr", "");
@@ -1298,7 +1489,7 @@
     try {
       const r = await invoke("ping");
       pill.className = "pill ok";
-      $("statusText").textContent = "v" + (r.version || "?") + " · " + (r.rules || 0) + " 条规则";
+      $("statusText").textContent = "v" + (r.version || "?") + " · " + (r.rules || 0) + " 规则 · " + (r.practices || 0) + " 最佳实践";
     } catch (e) {
       pill.className = "pill bad";
       $("statusText").textContent = "sidecar 未就绪";

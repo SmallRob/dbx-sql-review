@@ -42,6 +42,9 @@ type Result struct {
 	// Stats 是客观规模统计；Metrics 是由命中 + Stats 推出的质量画像（见 metrics.go）。
 	Stats   QualityStats   `json:"stats"`
 	Metrics QualityMetrics `json:"metrics"`
+	// SuggestedPractices 是与本次命中相关的最佳实践建议（见 practices.go）。
+	// 只在 review/sql 单段评审时填充，批量报告不重复附带以免体积膨胀。
+	SuggestedPractices []Practice `json:"suggestedPractices,omitempty"`
 }
 
 // refresh 在外部往 Findings 里补了命中（例如批量为文件名补 SQL010）之后重算派生字段。
@@ -52,6 +55,12 @@ func (r *Result) refresh() {
 	}
 	r.Score, r.Level = scoreOf(r.Findings)
 	r.Metrics = ComputeQuality(r.Findings, r.Stats)
+}
+
+// withPractices 依据命中与方言附加最佳实践建议。由 review/sql 显式调用，
+// 避免批量评审的每条结果都带上重复的建议数据。
+func (r *Result) withPractices() {
+	r.SuggestedPractices = SuggestPractices(r.Findings, NormalizeDialect(r.Dialect))
 }
 
 // AnalyzeOptions 控制一次评审的口径。

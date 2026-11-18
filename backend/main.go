@@ -22,7 +22,7 @@ import (
 	dbxpluginsdk "github.com/t8y2/dbx/plugins/sdk/go/dbx-plugin-sdk"
 )
 
-var pluginVersion = "0.1.30"
+var pluginVersion = "0.1.31"
 
 const pluginID = "io.github.smallrob.sql-review"
 
@@ -84,7 +84,8 @@ func (p *plugin) Handle(
 
 	switch method {
 	case "ping", "dbx-sql-review/ping":
-		return map[string]any{"ok": true, "version": pluginVersion, "rules": len(ruleCatalog)}, nil
+		return map[string]any{"ok": true, "version": pluginVersion,
+			"rules": len(ruleCatalog), "practices": len(practiceCatalog)}, nil
 
 	case "config/get":
 		return p.cfg().publicConfig(), nil
@@ -144,6 +145,7 @@ func (p *plugin) Handle(
 			NoUseRequired: true,
 		}
 		res := AnalyzeSQL(sqlText, file, cfg.Rules, opts)
+		res.withPractices()
 		actor := str("actor")
 		if actor == "" {
 			actor = cfg.Actor
@@ -233,6 +235,43 @@ func (p *plugin) Handle(
 	case "audit/verify":
 		okChain, brokenAt, total := verifyAudit()
 		return map[string]any{"ok": okChain, "brokenAt": brokenAt, "total": total}, nil
+
+	case "practices/list":
+		// 最佳实践目录：按方言/分类过滤，供「最佳实践」标签页展示。
+		var dialect Dialect
+		if raw, ok := values["dialect"]; ok {
+			_ = json.Unmarshal(raw, &dialect)
+		}
+		dialect = NormalizeDialect(string(dialect))
+		if raw := str("dialect"); raw != "" && dialect == "" {
+			dialect = NormalizeDialect(raw)
+		}
+		category := str("category")
+		items := Practices(dialect, category)
+		return map[string]any{
+			"version": pluginVersion, "total": len(items), "practices": items,
+			"categories": PracticeCategories(dialect),
+			"dialects":   []string{"mysql", "postgres", "sqlserver", "sqlite"},
+		}, nil
+
+	case "practices/suggest":
+		// 依据一段 SQL 的评审命中，推荐关联的最佳实践（不执行 SQL）。
+		sqlText := str("sql")
+		if strings.TrimSpace(sqlText) == "" {
+			return nil, dbxpluginsdk.NewError(-32602, "SQL 为空")
+		}
+		cfg := p.cfg()
+		file := str("file")
+		if file == "" {
+			file = "inline.sql"
+		}
+		dialect := resolveDialect(NormalizeDialect(str("dialect")), sqlText, file)
+		res := AnalyzeSQL(sqlText, file, cfg.Rules, AnalyzeOptions{Dialect: dialect, NoUseRequired: true})
+		return map[string]any{
+			"dialect":   string(dialect),
+			"practices": SuggestPractices(res.Findings, dialect),
+			"ruleIds":   collectRuleIDs(res.Findings),
+		}, nil
 
 	case "mcp/tool", "mcp/tools":
 		return handleMcpTool(params), nil
