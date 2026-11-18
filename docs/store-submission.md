@@ -177,3 +177,32 @@ CI 会校验候选文件，此时**保持红色是预期行为**——错误信�
 已上架插件再发新版时，只提交 `candidates/<plugin-id>.json`，且只改 `version`
 与 `targets`；其余字段留空表示沿用目录里的现值。版本号必须严格递增，
 已上架或已撤销的版本不能重提。
+
+## 7. 单 PR 滚动更新（本项目约定，后续遵照执行）
+
+**不为每个版本新建商店 PR。** 所有版本更新都直接提交到同一个 PR（当前为
+`t8y2/dbx-store` 的 #546），避免多个未合并 PR 互相阻塞
+（0.1.31 未合并时，0.1.32/0.1.33 的候选 PR 无法独立推进）。
+
+操作方式（脚本已固化在 `scripts/roll-store-pr.py`）：
+
+```bash
+# 预览（默认 dry-run，不写）：
+python scripts/roll-store-pr.py --pr 546
+# 执行：把本仓库 store/candidates/*.json（已同步官方 Release 哈希）
+#       覆盖到目标 PR 分支，并更新 PR 标题/描述；同时关闭重复 PR：
+STORE_TOKEN=<对 t8y2/dbx-store 有写权限的 token> \
+  python scripts/roll-store-pr.py --pr 546 --apply --close-duplicates
+```
+
+脚本从 PR 的 head 分支读取现有候选 blob sha，用 contents API 原位更新文件，
+因此**不新建 PR**。token 优先取 `STORE_TOKEN`，其次 `GH_TOKEN`。
+
+> 权限注意：自动化创建的 PR 分支属于上游 `t8y2/dbx-store`。项目当前 token
+> 对该仓库只有 issue 评论权限，无 contents/PR 写权限（写请求返回 403/404）。
+> 执行滚动更新前，需换用对 `t8y2/dbx-store` 有写权限的 token，或由有权限的
+> 维护者/自动化 App 在同一分支提交。切勿因权限不足而新建 PR。
+
+若 store 端自动化（`sync-plugin-release.yml`）仍按版本号建分支（
+`automation/plugin-release/<id>/<version>`）持续产生新 PR，需在 store 仓库侧
+把分支名改为按插件固定的稳定分支，从源头保证单 PR；该改动不在本插件仓库范围。
