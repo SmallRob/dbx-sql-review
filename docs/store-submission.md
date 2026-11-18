@@ -20,9 +20,9 @@
 ## 2. 发布 Release
 
 ```bash
-git tag v0.1.32
+git tag v0.1.33
 git push origin main --tags
-# 然后在 GitHub 上创建 Release（tag 用 v0.1.32），触发 .github/workflows/plugin-release.yml
+# 然后在 GitHub 上创建 Release（tag 用 v0.1.33），触发 .github/workflows/plugin-release.yml
 ```
 
 CI（`t8y2/dbx/.github/workflows/plugin-release-reusable.yml@plugin-cli-v0.1.10`）会：
@@ -34,11 +34,11 @@ CI（`t8y2/dbx/.github/workflows/plugin-release-reusable.yml@plugin-cli-v0.1.10`
 发布后 Release 附件应包含：
 
 ```
-io.github.smallrob.sql-review-0.1.32-linux-x64.dbxp
-io.github.smallrob.sql-review-0.1.32-linux-arm64.dbxp
-io.github.smallrob.sql-review-0.1.32-windows-x64.dbxp
-io.github.smallrob.sql-review-0.1.32-darwin-x64.dbxp
-io.github.smallrob.sql-review-0.1.32-darwin-arm64.dbxp
+io.github.smallrob.sql-review-0.1.33-linux-x64.dbxp
+io.github.smallrob.sql-review-0.1.33-linux-arm64.dbxp
+io.github.smallrob.sql-review-0.1.33-windows-x64.dbxp
+io.github.smallrob.sql-review-0.1.33-darwin-x64.dbxp
+io.github.smallrob.sql-review-0.1.33-darwin-arm64.dbxp
 release-candidates.json
 ```
 
@@ -70,9 +70,9 @@ git clone https://github.com/t8y2/dbx-store.git
 cd dbx-store
 node scripts/sync-release-candidate.mjs \
   --repository smallrob/dbx-sql-review \
-  --tag v0.1.32 \
-  --release-candidates-url https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.32/release-candidates.json \
-  --metadata-url https://raw.githubusercontent.com/smallrob/dbx-sql-review/v0.1.32/.dbx-store.json \
+  --tag v0.1.33 \
+  --release-candidates-url https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.33/release-candidates.json \
+  --metadata-url https://raw.githubusercontent.com/smallrob/dbx-sql-review/v0.1.33/.dbx-store.json \
   --output candidates/io.github.smallrob.sql-review.json
 ```
 
@@ -88,13 +88,13 @@ permissions 为准**，所以 `.dbx-store.json` 里的 `permissions` 必须与
   "schemaVersion": 1,
   "id": "io.github.smallrob.sql-review",
   "publisher": "smallrob",
-  "version": "0.1.32",
+  "version": "0.1.33",
   "name": "SQL Review",
   "description": "静态 SQL 评审台：规则化检查破坏性变更、迁移规范、性能与结构质量，不连接数据库、不执行被评审的 SQL。",
-  "icon": "https://raw.githubusercontent.com/smallrob/dbx-sql-review/v0.1.32/assets/plugin.svg",
+  "icon": "https://raw.githubusercontent.com/smallrob/dbx-sql-review/v0.1.33/assets/plugin.svg",
   "tags": ["sql", "review", "lint", "migration", "security"],
   "permissions": ["host.workbench"],
-  "source": "https://github.com/SmallRob/dbx-sql-review/tree/v0.1.32",
+  "source": "https://github.com/SmallRob/dbx-sql-review/tree/v0.1.33",
   "homepage": "https://github.com/SmallRob/dbx-sql-review",
   "license": "Apache-2.0",
   "releaseNotes": "新增质量评分卡与评分环，补六维命中数和规模统计；命中列表支持严重度筛选、证据折叠、复制建议与行定位，并支持复制摘要/导出 Markdown；批量页增加紧凑评分环、等级分布和已选文件列表，支持去重、单条移除与清空。保留文件打开、拖拽与宽屏等高布局修复；规则总数 61 不变。",
@@ -107,7 +107,7 @@ permissions 为准**，所以 `.dbx-store.json` 里的 `permissions` 必须与
   "targets": [
     {
       "target": "darwin-arm64",
-      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.32/io.github.smallrob.sql-review-0.1.32-darwin-arm64.dbxp",
+      "url": "https://github.com/SmallRob/dbx-sql-review/releases/download/v0.1.33/io.github.smallrob.sql-review-0.1.33-darwin-arm64.dbxp",
       "sha256": "<64 位十六进制>",
       "size": 2856861
     }
@@ -131,9 +131,9 @@ PR 模板需要如实填写这几项：
 | 项 | 本插件的答案 |
 |---|---|
 | Plugin ID | `io.github.smallrob.sql-review` |
-| Version | `0.1.32` |
+| Version | `0.1.33` |
 | Publisher ID | `smallrob` |
-| 源码仓库与 tag | `https://github.com/SmallRob/dbx-sql-review` @ `v0.1.32` |
+| 源码仓库与 tag | `https://github.com/SmallRob/dbx-sql-review` @ `v0.1.33` |
 | 能力与用户流程 | 工作台 + 两个命令（全屏标签页 / 底部面板）+ 工具栏入口；评审单段 SQL 或整个迁移目录 |
 | 权限 | 仅 `host.workbench`（用于 `openWorkbench` / `closeWorkbench`） |
 | 数据访问 | 不访问数据库、不访问凭据；只读用户提供的 SQL 文本与内存中的最近评审结果 |

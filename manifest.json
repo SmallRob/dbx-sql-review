@@ -3,7 +3,7 @@
   "manifest_version": 1,
   "id": "io.github.smallrob.sql-review",
   "name": "SQL Review",
-  "version": "0.1.32",
+  "version": "0.1.33",
   "publisher": "smallrob",
   "description": "静态 SQL 评审台：规则化评审破坏性变更、迁移规范、性能与结构质量；附按方言组织的最佳实践库，评审时联动推荐优化建议。不连库、不执行 SQL。",
   "icon": "assets/plugin.svg",

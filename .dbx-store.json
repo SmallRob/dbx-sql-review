@@ -2,12 +2,22 @@
   "name": "SQL Review",
   "description": "静态 SQL 评审台：规则化评审破坏性变更、迁移规范、性能与结构质量；附按方言组织的最佳实践库，评审时联动推荐优化建议。不连库、不执行 SQL。",
   "icon": "assets/plugin.svg",
-  "tags": ["sql", "review", "lint", "migration", "security", "best-practices", "performance"],
-  "permissions": ["host.workbench"],
-  "source": "https://github.com/SmallRob/dbx-sql-review/tree/v0.1.32",
+  "tags": [
+    "sql",
+    "review",
+    "lint",
+    "migration",
+    "security",
+    "best-practices",
+    "performance"
+  ],
+  "permissions": [
+    "host.workbench"
+  ],
+  "source": "https://github.com/SmallRob/dbx-sql-review/tree/v0.1.33",
   "homepage": "https://github.com/SmallRob/dbx-sql-review",
   "license": "Apache-2.0",
-  "releaseNotes": "修复质量评分失真：同一规则重复命中改为递减计分并单规则封顶 2×，避免 6 条 ALTER 静态提示把质量分打到 0；修正等级封顶方向，低分不再被反向抬成 C；SQL020/SQL021 降为提示级，重新标定后样例迁移质量分 0→80、等级 C→B。保留 v0.1.31 的最佳实践能力：62 条规则化条目按 MySQL/PostgreSQL/SQL Server/SQLite 方言组织，新标签页与评审联动推荐，新增只读 MCP 工具 sql_best_practices。全程不连接数据库、不执行 SQL、不发起网络请求。",
+  "releaseNotes": "修复评审结果布局：风险命中列表不再被「相关最佳实践」挤压裁切，命中项按内容完整显示并在列表内滚动；相关最佳实践改为默认折叠、独立滚动的详情块。保留 v0.1.32 评分修复与 v0.1.31 最佳实践库。全程不连库、不执行 SQL。",
   "localizations": {
     "en": {
       "name": "SQL Review",

@@ -145,6 +145,7 @@
     display: grid; grid-template-columns: 126px minmax(0, 1fr); gap: 16px; align-items: center;
     padding: 14px; margin-bottom: 12px; border: 1px solid var(--line); border-radius: 12px;
     background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 62%);
+    flex: 0 0 auto;
   }
   .quality-card.compact { grid-template-columns: 104px minmax(0, 1fr); gap: 12px; padding: 11px 13px; }
   .quality-gauge { position: relative; width: 120px; height: 120px; margin: 0 auto; }
@@ -199,7 +200,10 @@
     .quality-dims { grid-template-columns: 1fr; }
   }
 
+  /* 命中列表：只允许列表区滚动，命中卡片本身按内容完整渲染（flex-shrink:0），
+     避免下方「相关最佳实践」挤压导致风险项被裁切。 */
   .review-findings { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+  .review-findings > .review-list > .finding { flex: 0 0 auto; }
   .review-toolbar {
     display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
     padding: 0 0 9px; margin-bottom: 2px; border-bottom: 1px solid var(--line);
@@ -338,8 +342,18 @@
   .bp-card .bp-rules { margin-top: 7px; font-size: 11px; color: var(--muted); }
   .bp-card .bp-rules b { color: var(--muted); font-weight: 600; }
   /* 评审结果里的「相关最佳实践」区块 */
-  .bp-sug { margin: 14px 0 4px; border-top: 1px solid var(--line); padding-top: 12px; }
-  .bp-sug > h4 { margin: 0 0 9px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+  /* 相关最佳实践：默认折叠、只在自身内部滚动；绝不占用命中列表的可用高度，
+     保证风险项始终完整可见。 */
+  .bp-sug { margin: 12px 0 4px; border-top: 1px solid var(--line); padding-top: 10px; flex: 0 0 auto; }
+  .bp-sug > summary {
+    cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 650; padding: 2px 0; color: var(--fg);
+  }
+  .bp-sug > summary::-webkit-details-marker { display: none; }
+  .bp-sug > summary::before { content: "▸"; font-size: 11px; color: var(--muted); }
+  .bp-sug[open] > summary::before { content: "▾"; }
+  .bp-sug > summary .bp-sug-count { color: var(--muted); font-weight: 400; font-size: 12px; }
+  .bp-sug-body { max-height: 300px; overflow-y: auto; margin-top: 8px; padding-right: 4px; }
   .bp-sug .bp-card { padding: 9px 12px; margin-bottom: 8px; }
   .bp-sug .bp-card .bp-summary { font-size: 12.5px; }
   .bp-empty { color: var(--muted); font-size: 12.5px; }
@@ -922,7 +936,8 @@
         ((p.goodSql) ? '<div class="bp-code good">' + esc(p.goodSql) + '</div>' : "") +
         '<div class="fact-actions"><button data-goto-practice="' + esc(p.id) + '">在最佳实践页查看完整条目 →</button></div>' +
       '</div>').join("");
-    return '<div class="bp-sug"><h4>相关最佳实践 <span class="chip">按命中规则联动推荐 · ' + list.length + ' 条</span></h4>' + cards + '</div>';
+    return '<details class="bp-sug"><summary>相关最佳实践 <span class="bp-sug-count">按命中规则联动推荐 · ' +
+      list.length + ' 条 · 点击展开</span></summary><div class="bp-sug-body">' + cards + '</div></details>';
   }
 
   function renderResult(res, reviewId) {
