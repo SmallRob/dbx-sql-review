@@ -181,18 +181,18 @@ CI 会校验候选文件，此时**保持红色是预期行为**——错误信�
 ## 7. 单 PR 滚动更新（本项目约定，后续遵照执行）
 
 **不为每个版本新建商店 PR。** 所有版本更新都直接提交到同一个 PR（当前为
-`t8y2/dbx-store` 的 #546），避免多个未合并 PR 互相阻塞
+`t8y2/dbx-store` 的 #558），避免多个未合并 PR 互相阻塞
 （0.1.31 未合并时，0.1.32/0.1.33 的候选 PR 无法独立推进）。
 
 操作方式（脚本已固化在 `scripts/roll-store-pr.py`）：
 
 ```bash
 # 预览（默认 dry-run，不写）：
-python scripts/roll-store-pr.py --pr 546
+python scripts/roll-store-pr.py --pr 558
 # 执行：把本仓库 store/candidates/*.json（已同步官方 Release 哈希）
 #       覆盖到目标 PR 分支，并更新 PR 标题/描述；同时关闭重复 PR：
 STORE_TOKEN=<对 t8y2/dbx-store 有写权限的 token> \
-  python scripts/roll-store-pr.py --pr 546 --apply --close-duplicates
+  python scripts/roll-store-pr.py --pr 558 --apply --close-duplicates
 ```
 
 脚本从 PR 的 head 分支读取现有候选 blob sha，用 contents API 原位更新文件，

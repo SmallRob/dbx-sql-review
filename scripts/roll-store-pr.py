@@ -7,11 +7,11 @@ DBX 商店新版本上架时，不为每个版本新建 PR，而是把最新候�
 
 用法：
     # 预览（默认 dry-run，不发写请求）：
-    python scripts/roll-store-pr.py --pr 546
+    python scripts/roll-store-pr.py --pr 558
     # 真正执行（需要对 t8y2/dbx-store 有写权限的 token）：
-    STORE_TOKEN=<有写权限的 token> python scripts/roll-store-pr.py --pr 546 --apply
+    STORE_TOKEN=<有写权限的 token> python scripts/roll-store-pr.py --pr 558 --apply
     # 同时关闭同插件的其它 open PR（避免重复）：
-    STORE_TOKEN=<token> python scripts/roll-store-pr.py --pr 546 --apply --close-duplicates
+    STORE_TOKEN=<token> python scripts/roll-store-pr.py --pr 558 --apply --close-duplicates
 
 token 优先级：STORE_TOKEN > GH_TOKEN。
 候选文件来自本仓库 store/candidates/<plugin-id>.json（sha256/size 已由
@@ -66,7 +66,7 @@ def request(method: str, path: str, body: dict | None = None) -> tuple[int, obje
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--pr", type=int, default=546, help="目标商店 PR 编号（默认 546）")
+    ap.add_argument("--pr", type=int, default=546, help="目标商店 PR 编号（默认 558）")
     ap.add_argument("--candidate", default="", help="候选 JSON 路径，默认取本仓库 store/candidates 下唯一文件")
     ap.add_argument("--apply", action="store_true", help="真正执行写操作；默认 dry-run")
     ap.add_argument("--close-duplicates", action="store_true", help="关闭同插件的其它 open PR")
