@@ -265,6 +265,37 @@
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   .empty { color: var(--muted); font-size: 13px; padding: 22px; text-align: center; }
 
+  /* ---------------- 架构评审 ---------------- */
+  .subtabs { display: flex; gap: 6px; margin: 0; }
+  .subtabs button { padding: 4px 11px; font-size: 12px; border-radius: 999px; }
+  .subtabs button.active { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .arch-head { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .arch-ring { position: relative; width: 96px; height: 96px; flex: 0 0 auto; }
+  .arch-ring svg { display: block; width: 100%; height: 100%; transform: rotate(-90deg); }
+  .arch-ring .track { stroke: var(--line); }
+  .arch-ring .value { transition: stroke-dashoffset .55s cubic-bezier(.3,.8,.3,1); }
+  .arch-ring .center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .arch-ring .center b { font-size: 24px; }
+  .arch-ring .center span { font-size: 10px; color: var(--muted); }
+  .arch-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+  .arch-stats .pill { font-size: 12px; }
+  .arch-filters { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
+  .arch-filters button { padding: 3px 10px; font-size: 12px; border-radius: 999px; }
+  .arch-filters button.active { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .arch-section-title { font-size: 13px; margin: 16px 0 8px; }
+  .arch-table-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .arch-table-card { border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; background: var(--bg); }
+  .arch-table-card h4 { margin: 0 0 6px; font-size: 13px; }
+  .arch-table-card .meta { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .arch-col-list { font: 11px/1.6 ui-monospace, Menlo, Consolas, monospace; color: var(--fg); }
+  .arch-col-list .pk { color: var(--accent); }
+  .arch-suggest { border: 1px solid var(--line); border-left-width: 3px; border-left-color: var(--accent); border-radius: 9px; padding: 10px 12px; margin-bottom: 8px; background: var(--bg); }
+  .arch-suggest h4 { margin: 0 0 4px; font-size: 13px; }
+  .arch-suggest .advice { color: var(--muted); }
+  .arch-suggest details { margin-top: 7px; }
+  .arch-suggest details summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+  .arch-suggest pre { margin-top: 6px; }
+
   .err { color: var(--bad-fg); background: var(--bad-bg); border: 1px solid transparent; border-radius: 8px; padding: 9px 12px; font-size: 13px; margin-bottom: 12px; }
   .err:empty { display: none; }
   .ok-banner { color: var(--ok-fg); background: var(--ok-bg); border-radius: 8px; padding: 9px 12px; font-size: 13px; margin-bottom: 12px; }
@@ -408,6 +439,23 @@
     #tab-review #reviewOut { overflow: hidden; }
     #tab-review .review-list { overflow-y: auto; }
     #tab-review textarea#sql { flex: 1 1 auto; min-height: 180px; resize: none; }
+    /* 「架构评审」页与评审页同构：左输入右报告，报告区内部滚动。 */
+    #tab-arch:not([hidden]) { display: flex; flex-direction: column; height: 100%; }
+    #tab-arch .cols {
+      flex: 1 1 auto;
+      min-height: 0;
+      align-items: stretch;
+      grid-template-rows: minmax(0, 1fr);
+    }
+    #tab-arch .cols > .card { display: flex; flex-direction: column; min-height: 0; }
+    #tab-arch .cols > .card > .card-body {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+    }
+    #tab-arch textarea#archSql { flex: 1 1 auto; min-height: 180px; resize: none; }
   }
   /* 「规则」页撑满可视高度：卡片当 flex 容器，只有规则列表内部滚动。 */
   #tab-rules:not([hidden]) { display: flex; flex-direction: column; height: 100%; }
@@ -435,6 +483,7 @@
 <nav class="tabs">
   <button class="tab active" data-tab="review">评审</button>
   <button class="tab" data-tab="batch">批量目录</button>
+  <button class="tab" data-tab="arch">架构评审</button>
   <button class="tab" data-tab="rules">规则</button>
   <button class="tab" data-tab="practices">最佳实践</button>
   <button class="tab" data-tab="audit">记录</button>
@@ -524,8 +573,9 @@
             </label>
             <button class="primary" id="btnBatchRun" disabled>批量评审</button>
             <button id="btnBatchExport" disabled>导出 Markdown</button>
+            <button id="btnBatchArchExport" disabled>导出架构章节</button>
           </div>
-          <p class="hint">批量评审会额外做目录内一致性校验：版本重复、版本缺口、不同版本内容雷同。</p>
+          <p class="hint">批量评审会做目录内一致性校验与跨文件架构评审（虚拟数据字典 + ARCH 规则集）；架构分为独立评分，不计入六维质量分。</p>
         </div>
       </div>
 
@@ -533,6 +583,52 @@
         <header><h2>批量报告</h2></header>
         <div class="card-body" id="batchOut">
           <div class="empty">还没有批量报告。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 架构评审 ============ -->
+  <section class="page" id="tab-arch" hidden>
+    <div class="cols">
+      <div class="card">
+        <header><h2>待评审脚本</h2></header>
+        <div class="card-body">
+          <div class="err" id="archErr"></div>
+          <div class="row" style="margin-bottom:8px">
+            <button id="btnArchPickFiles" title="选择一个或多个 .sql 文件，构建跨文件虚拟数据字典">选择 .sql 文件</button>
+            <span class="hint" id="archFileMeta" style="margin:0;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">未选择文件，也可直接粘贴 SQL</span>
+            <input type="file" id="archFileInput" accept=".sql" multiple hidden />
+          </div>
+          <div class="batch-files" id="archFilePanel" hidden>
+            <div class="batch-files-head">
+              <span><b id="archFileCount">0</b> 个 SQL 文件</span>
+              <button id="btnArchFilesClear" title="移除全部已选文件">清空</button>
+            </div>
+            <div class="batch-file-list" id="archFileList"></div>
+          </div>
+          <textarea id="archSql" rows="14" spellcheck="false" placeholder="粘贴一段或多段 SQL（CREATE / ALTER / RENAME / DML），与所选文件合并构建虚拟数据字典…"></textarea>
+          <div class="row" style="margin-top:10px">
+            <button class="primary" id="btnArchRun">开始架构评审</button>
+            <span class="spacer"></span>
+            <label class="field" style="flex:0 0 120px">
+              <select id="archDialect">
+                <option value="">自动判定方言</option>
+                <option value="mysql">MySQL</option>
+                <option value="sqlite">SQLite</option>
+                <option value="sqlserver">SQL Server</option>
+                <option value="postgres">PostgreSQL</option>
+              </select>
+            </label>
+          </div>
+          <p class="hint">架构评审把全部脚本汇总成虚拟数据字典（表 / 列 / 主键 / 索引 / 外键），跑 ARCH001–032 规则集；架构分为独立评分，不计入六维质量分。静态词法分析，不连库、不执行被评审的 SQL。</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <header class="card-head"><h2>架构报告</h2></header>
+        <div class="card-body" id="archOut">
+          <div class="empty">还没有架构评审结果。</div>
         </div>
       </div>
     </div>
@@ -554,6 +650,15 @@
           标记为「项目约定」的规则默认关闭。是否要求写 <code>USE</code>、列是否必须有 <code>COMMENT</code>、
           是否必须显式写 <code>ENGINE</code>、DDL 是否必须带幂等守卫——这些都属于团队约定而非通用 SQL 质量问题，
           请按自己仓库的规范开启。
+        </div>
+        <div class="row" style="margin-bottom:12px;align-items:center">
+          <label class="row" style="gap:6px;font-size:13px;margin:0">
+            <input type="checkbox" id="schemaEnabled" style="width:16px;height:16px" />
+            <span>批量评审时产出<b>架构评审</b>（ARCH 规则集，独立评分；下方 ARCH 规则可单独启停/调级）</span>
+          </label>
+          <span class="spacer"></span>
+          <span class="hint" style="margin:0">宽表阈值（ARCH007）</span>
+          <input type="number" id="wideTableCols" min="5" max="500" style="width:90px" />
         </div>
         <div class="tabs-sub" id="ruleCats"></div>
         <div class="scroll-y" id="ruleList"></div>
@@ -626,6 +731,7 @@
     reviewFile: "inline.sql", reviewResult: null, reviewId: null, reviewFilter: "all",
     dupCount: 0,
     practices: [], bpDialect: "", bpCat: "all", bpQuery: "",
+    archFilter: "all", archFiles: [], archReport: null, schemaCfg: null,
   };
 
   function invoke(method, params, timeoutMs) {
@@ -651,7 +757,7 @@
   // ---------------- tabs
   function activateTab(name) {
     document.querySelectorAll("nav.tabs .tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
-    ["review", "batch", "rules", "practices", "audit"].forEach((t) => { $("tab-" + t).hidden = t !== name; });
+    ["review", "batch", "arch", "rules", "practices", "audit"].forEach((t) => { $("tab-" + t).hidden = t !== name; });
     if (name === "rules") loadRules();
     if (name === "practices") loadPractices();
     if (name === "audit") loadAudit();
@@ -1229,12 +1335,107 @@
       }
       const { report } = await invoke("batch/run", { batchId }, 600000);
       state.report = report;
+      state.archFilter = "all"; // 新批次重置严重度筛选，避免残留过滤让问题清单假性为空
       renderBatch(report);
-      $("btnBatchExport").disabled = false;
+      $("btnBatchExport").disabled = !report;
+      $("btnBatchArchExport").disabled = !(report && report.architecture);
     } catch (e) {
       showErr("batchErr", "批量评审失败：" + e.message);
     } finally {
       $("btnBatchRun").disabled = false;
+    }
+  });
+
+  $("btnBatchArchExport").addEventListener("click", async () => {
+    if (!state.batchId) return;
+    try {
+      const { markdown } = await invoke("batch/architecture/export", { batchId: state.batchId });
+      if (window.dbxPlugin && typeof window.dbxPlugin.saveFile === "function") {
+        await window.dbxPlugin.saveFile({ suggestedName: "sql-architecture-review.md", content: markdown });
+        toast("架构章节已保存");
+      } else {
+        toast("当前宿主不支持保存文件");
+      }
+    } catch (e) { toast("导出失败：" + e.message); }
+  });
+
+  // ---------------- 架构评审（独立标签页） ----------------
+  function archLineCount(text) { return text ? String(text).split("\n").length : 0; }
+  function updateArchFiles() {
+    const n = state.archFiles.length;
+    $("archFileCount").textContent = n;
+    $("archFilePanel").hidden = n === 0;
+    $("archFileMeta").textContent = n
+      ? "已选 " + n + " 个文件，也可再粘贴补充"
+      : "未选择文件，也可直接粘贴 SQL";
+    $("archFileList").innerHTML = state.archFiles.map((f, i) =>
+      '<div class="batch-file-row">' +
+        '<span class="name" title="' + esc(f.path) + '">' + esc(f.path) + '</span>' +
+        '<span class="meta">' + archLineCount(f.content) + ' 行</span>' +
+        '<span class="meta size">' + formatBytes(f.size) + '</span>' +
+        '<button data-arch-remove="' + i + '" title="从本批移除">移除</button>' +
+      '</div>').join("");
+  }
+  async function addArchFiles(fileList) {
+    const arr = Array.from(fileList || []).filter((f) => /\.sql$/i.test(f.name) || f.type === "");
+    if (!arr.length) { toast("没有找到 .sql 文件"); return; }
+    showErr("archErr", "");
+    const known = new Set(state.archFiles.map((f) => f.path.toLowerCase()));
+    let added = 0, skipped = 0;
+    for (const f of arr) {
+      const path = String(f.name || "").replace(/\\/g, "/");
+      if (!path || known.has(path.toLowerCase())) { skipped++; continue; }
+      try {
+        const content = await f.text();
+        state.archFiles.push({ path, content, size: f.size });
+        known.add(path.toLowerCase());
+        added++;
+      } catch (e) { toast("读取失败：" + f.name); }
+    }
+    if (state.archFiles.length > 800) {
+      state.archFiles = state.archFiles.slice(0, 800);
+      toast("架构评审单次最多 800 个文件，已截断");
+    }
+    updateArchFiles();
+    if (added) toast("已载入 " + added + " 个文件" + (skipped ? "，跳过 " + skipped + " 个重复" : ""));
+    else if (skipped) toast("已跳过 " + skipped + " 个重复文件");
+  }
+  $("btnArchPickFiles").addEventListener("click", () => $("archFileInput").click());
+  $("archFileInput").addEventListener("change", (e) => { addArchFiles(e.target.files); e.target.value = ""; });
+  $("btnArchFilesClear").addEventListener("click", () => { state.archFiles = []; updateArchFiles(); });
+  $("archFileList").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-arch-remove]");
+    if (!btn) return;
+    const idx = Number(btn.dataset.archRemove);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= state.archFiles.length) return;
+    state.archFiles.splice(idx, 1);
+    updateArchFiles();
+  });
+  updateArchFiles();
+  $("btnArchRun").addEventListener("click", async () => {
+    showErr("archErr", "");
+    const files = state.archFiles.map((f) => ({ path: f.path, content: f.content }));
+    const inline = $("archSql").value;
+    if (inline.trim()) files.push({ path: "inline.sql", content: inline });
+    if (!files.length) { showErr("archErr", "请先粘贴 SQL 或选择 .sql 文件。"); return; }
+    // 批量链路按 20 个/帧分块；架构直连是单次请求，DBX 单帧约 8MB。
+    // 超限时给明确指引，而不是让请求在传输层神秘失败。
+    const total = files.reduce((s, f) => s + (f.content || "").length, 0);
+    if (total > 6 * 1024 * 1024) {
+      showErr("archErr", "所选内容约 " + (total / 1048576).toFixed(1) +
+        " MB，超过单次请求上限。请在「批量目录」页做批量评审（自动分块，报告页可一键跳转架构评审），或减少文件数。");
+      return;
+    }
+    $("btnArchRun").disabled = true;
+    try {
+      const r = await invoke("schema/review", { files: files, dialect: $("archDialect").value }, 120000);
+      state.archReport = r.architecture;
+      state.archFilter = "all";
+      renderArchitecture(r.architecture, $("archOut"));
+    } catch (e) {
+      showErr("archErr", "架构评审失败：" + e.message);
+    } finally {
+      $("btnArchRun").disabled = false;
     }
   });
 
@@ -1255,6 +1456,11 @@
   });
 
   function renderBatch(report) {
+    if (!report) { $("batchOut").innerHTML = '<div class="empty">还没有批量报告。</div>'; return; }
+    renderBatchQuality(report);
+  }
+
+  function renderBatchQuality(report) {
     const s = report.summary || {};
     const m = s.quality || {};
     const out = [];
@@ -1288,8 +1494,122 @@
       }
       out.push('</tbody></table>');
     }
+    if (report.architecture) {
+      out.push('<div class="row" style="margin-top:14px;align-items:center">' +
+        '<button id="btnOpenArch">查看架构评审 →</button>' +
+        '<span class="hint" style="margin:0">架构评审已拆为独立标签页；架构分独立评分，不计入六维质量分。</span></div>');
+    }
     $("batchOut").innerHTML = out.join("");
     animateQualityGauges();
+    if (report.architecture) {
+      const b = $("btnOpenArch");
+      if (b) b.addEventListener("click", () => {
+        activateTab("arch");
+        renderArchitecture(report.architecture, $("archOut"));
+      });
+    }
+  }
+
+  // ---------------- 架构评审 UI（独立标签页） ----------------
+  const ARCH_SEV_ORDER = ["critical", "high", "medium", "low", "info"];
+  function archRing(score, grade, label) {
+    const color = dimColor(score);
+    const R = 42, C = 2 * Math.PI * R;
+    const frac = Math.max(0, Math.min(1, score / 100));
+    return '<div class="arch-ring" role="img" aria-label="架构分 ' + esc(score) + '">' +
+      '<svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="' + R + '" fill="none" stroke-width="9"/>' +
+      '<circle class="value" cx="50" cy="50" r="' + R + '" fill="none" stroke="' + color + '" stroke-width="9" stroke-linecap="round" ' +
+      'stroke-dasharray="' + C + '" stroke-dashoffset="' + (C * (1 - frac)) + '"/></svg>' +
+      '<div class="center"><b style="color:' + color + '">' + esc(score) + '</b>' +
+      '<span>' + esc(grade) + ' ' + esc(label || "") + '</span></div></div>';
+  }
+
+  function renderArchitecture(a, container) {
+    // container 可以是元素或元素 id；旧实现直接 $(container)，
+    // 传入元素时 getElementById(元素) 返回 null，渲染必崩。
+    const host = typeof container === "string" ? $(container) : container;
+    if (!host) return;
+    const out = [];
+    const stats = a.stats || {};
+    const findings = Array.isArray(a.findings) ? a.findings : [];
+    const sevCount = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
+    findings.forEach((f) => { sevCount[f.severity] = (sevCount[f.severity] || 0) + 1; });
+
+    out.push('<div class="arch-head">' + archRing(a.score, a.grade, a.gradeLabel) +
+      '<div class="arch-stats">' +
+      '<span class="pill">表 ' + esc(stats.tables) + '</span>' +
+      '<span class="pill">列 ' + esc(stats.columns) + '</span>' +
+      '<span class="pill">索引 ' + esc(stats.indexes) + '</span>' +
+      '<span class="pill">外键 ' + esc(stats.references) + '</span>' +
+      '<span class="pill">问题 ' + esc(stats.findings) + '</span>' +
+      (stats.parseErrors ? '<span class="pill">未解析 ' + esc(stats.parseErrors) + '</span>' : "") +
+      '</div></div>');
+    out.push('<p class="hint">架构分为跨文件设计评审的独立评分，不计入六维 SQL 质量分；静态词法分析，不连库、不执行 SQL。</p>');
+
+    // 严重度筛选
+    const filters = ["all", ...ARCH_SEV_ORDER].filter((k) => k === "all" || sevCount[k]);
+    out.push('<div class="arch-filters">');
+    filters.forEach((k) => {
+      const label = k === "all" ? "全部" : SEV_LABEL[k] + " " + sevCount[k];
+      out.push('<button data-arch-filter="' + k + '" class="' + (state.archFilter === k ? "active" : "") + '">' + esc(label) + "</button>");
+    });
+    out.push("</div>");
+
+    const filtered = findings.filter((f) => state.archFilter === "all" || f.severity === state.archFilter);
+    out.push('<h3 class="arch-section-title">问题清单（' + filtered.length + '）</h3>');
+    if (!filtered.length) {
+      out.push('<div class="empty">未发现架构问题。</div>');
+    } else {
+      filtered.forEach((f) => {
+        const tables = (f.tables || []).map(esc).join("、");
+        out.push('<div class="finding ' + esc(f.severity) + '"><h4>' + sevBadge(f.severity) +
+          '<span>' + esc(f.title) + '</span><span class="rule">' + esc(f.ruleId) + "</span></h4>" +
+          '<p>' + esc(f.message) + "</p>" +
+          (f.advice ? '<p class="advice">建议：' + esc(f.advice) + "</p>" : "") +
+          (tables ? '<p class="meta" style="color:var(--muted);font-size:12px">涉及表：' + tables + "</p>" : "") +
+          ((f.practiceIds || []).length ? '<p class="meta" style="color:var(--muted);font-size:12px">关联最佳实践：' + (f.practiceIds || []).map(esc).join(", ") + "</p>" : "") +
+          "</div>");
+      });
+    }
+
+    // 按表聚合建议卡
+    const suggests = Array.isArray(a.suggestions) ? a.suggestions : [];
+    if (suggests.length) {
+      out.push('<h3 class="arch-section-title">优化建议（' + suggests.length + ' 张表）</h3>');
+      suggests.forEach((sg) => {
+        out.push('<div class="arch-suggest"><h4>' + esc(sg.title) + "</h4>" +
+          '<p>' + esc(sg.message) + "</p>" +
+          '<p class="advice">' + esc(sg.advice) + "</p>" +
+          '<p class="meta" style="color:var(--muted);font-size:12px">规则：' + (sg.ruleIds || []).map(esc).join(", ") + "</p>");
+        if (sg.goodSql || sg.badSql) {
+          out.push("<details><summary>查看正反 SQL 片段</summary>");
+          if (sg.goodSql) out.push("<div class='meta' style='margin-top:6px'>推荐写法</div><pre>" + esc(sg.goodSql) + "</pre>");
+          if (sg.badSql) out.push("<div class='meta' style='margin-top:6px'>避免写法</div><pre>" + esc(sg.badSql) + "</pre>");
+          out.push("</details>");
+        }
+        out.push("</div>");
+      });
+    }
+
+    // 表结构矩阵
+    const tables = Array.isArray(a.tables) ? a.tables : [];
+    if (tables.length) {
+      out.push('<h3 class="arch-section-title">表结构（' + tables.length + '）</h3><div class="arch-table-grid">');
+      tables.forEach((t) => {
+        const pk = new Set((t.primaryKey || []).map((x) => x.toLowerCase()));
+        const cols = (t.columns || []).map((c) =>
+          '<div class="' + (pk.has(c.name.toLowerCase()) ? "pk" : "") + '">' + esc(c.name) + ' <span style="color:var(--muted)">' + esc(c.type || "") + "</span></div>");
+        out.push('<div class="arch-table-card"><h4>' + esc(t.qualifiedName || t.name) + "</h4>" +
+          '<div class="meta">' + esc((t.columns || []).length) + " 列 · 主键 " + esc((t.primaryKey || []).join(", ") || "无") + "</div>" +
+          '<div class="arch-col-list">' + cols.join("") + "</div></div>");
+      });
+      out.push("</div>");
+    }
+
+    host.innerHTML = out.join("");
+    host.querySelectorAll("button[data-arch-filter]").forEach((b) => {
+      b.addEventListener("click", () => { state.archFilter = b.dataset.archFilter; renderArchitecture(a, host); });
+    });
   }
 
   // ---------------- 规则
@@ -1297,8 +1617,11 @@
     showErr("rulesErr", "");
     try {
       const data = await invoke("rules/get");
-      state.rules = data.rules || [];
+      state.rules = (data.rules || []).concat(data.schemaRules || []);
       state.config = data.config || {};
+      state.schemaCfg = data.schema || { enabled: true, wideTableColumns: 50 };
+      $("schemaEnabled").checked = state.schemaCfg.enabled !== false;
+      $("wideTableCols").value = state.schemaCfg.wideTableColumns || 50;
       renderRules();
     } catch (e) {
       showErr("rulesErr", "读取规则失败：" + e.message);
@@ -1352,8 +1675,12 @@
       severity[sel.getAttribute("data-sev")] = sel.value;
     });
     const cfg = Object.assign({}, state.config || {}, { disabled: disabled, severity: severity });
+    const schemaCfg = {
+      enabled: $("schemaEnabled").checked,
+      wideTableColumns: parseInt($("wideTableCols").value, 10) || 50,
+    };
     try {
-      await invoke("rules/save", { config: cfg });
+      await invoke("rules/save", { config: cfg, schema: schemaCfg });
       toast("规则配置已保存");
       await loadRules();
     } catch (e) { showErr("rulesErr", "保存失败：" + e.message); }

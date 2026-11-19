@@ -87,6 +87,16 @@ func mcpTools() []mcpToolSpec {
 				"dialectHint": propStr("可选：与 dialect 等价的别名，方便自然语言调用"),
 			}),
 		},
+		{
+			Name: "sql_schema_review", Access: "read", Title: "架构评审",
+			Description: "对多段 DDL/DML 脚本构建跨文件虚拟数据字典（表/列/主键/索引/外键/字符集），输出表设计、类型一致性、索引设计、关系完整性与迁移演进类 ARCH 规则命中及按表聚合的优化建议。独立架构分，不连库、不执行 SQL。",
+			Schema: obj(map[string]any{
+				"files":   propStr("可选：[{path, content}] 文件数组（JSON）"),
+				"sql":     propStr("可选：多段脚本合并文本（与 files 二选一或同时提供）"),
+				"file":    propStr("可选：文件名，用于方言提示，可省略"),
+				"dialect": propStr("可选：mysql / sqlite / sqlserver / postgres；省略则自动判定"),
+			}),
+		},
 	}
 }
 
@@ -347,6 +357,43 @@ func (p *plugin) dispatchTool(name string, args map[string]any) (any, *dbxplugin
 		dialect := resolveDialect(NormalizeDialect(getStr("dialect")), sqlText, file)
 		opts := AnalyzeOptions{Dialect: dialect, NoUseRequired: true}
 		return optimizeSQL(sqlText, file, cfg.Rules, opts), nil
+
+	case "sql_schema_review":
+		var files []batchInput
+		if raw, ok := args["files"].([]any); ok {
+			for _, item := range raw {
+				m, ok := item.(map[string]any)
+				if !ok {
+					continue
+				}
+				files = append(files, batchInput{
+					Path:    strAny(m["path"]),
+					Content: strAny(m["content"]),
+				})
+			}
+		}
+		if sqlText := getStr("sql"); strings.TrimSpace(sqlText) != "" {
+			files = append(files, batchInput{Path: getStr("file"), Content: sqlText})
+		}
+		if len(files) == 0 {
+			return nil, dbxpluginsdk.NewError(-32602, "files 或 sql 不能为空")
+		}
+		cfg := p.cfg()
+		model := BuildSchemaModel(files, NormalizeDialect(getStr("dialect")))
+		report := RunSchemaReview(model, cfg.Rules, true)
+		appendAudit("schema-review", files[0].Path, report.Grade, report.Score, len(report.Findings), "ai_tool")
+		return map[string]any{
+			"version": pluginVersion, "dialect": string(model.Dialect),
+			"architecture": report,
+			"note":         "静态词法分析：未连接数据库，不执行被评审的 SQL。",
+		}, nil
 	}
 	return nil, dbxpluginsdk.NewError(-32601, "unhandled tool: "+name)
+}
+
+func strAny(v any) string {
+	if s, ok := v.(string); ok {
+		return s
+	}
+	return ""
 }

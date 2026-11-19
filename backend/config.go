@@ -38,10 +38,20 @@ type Config struct {
 	Actor string `json:"actor"`
 	// Rules 是规则配置。
 	Rules RuleConfig `json:"rules"`
+	// Schema 是架构评审（v0.2.0）的独立开关与阈值；与六维质量分隔离。
+	Schema SchemaConfig `json:"schema"`
 	// DefaultDialect 是默认方言（空=按内容自动判定）。
 	DefaultDialect string `json:"defaultDialect,omitempty"`
 	// DefaultMigration 表示默认按迁移脚本口径评审（开启幂等/命名类规则）。
 	DefaultMigration bool `json:"defaultMigration"`
+}
+
+// SchemaConfig 是架构评审子配置。
+type SchemaConfig struct {
+	// Enabled 关闭后回退到 v0.1.33 行为：不构建 VDD、不产出架构报告。
+	Enabled bool `json:"enabled"`
+	// WideTableCols 是宽表列数阈值（ARCH007）。
+	WideTableCols int `json:"wideTableColumns"`
 }
 
 func defaultConfig() *Config {
@@ -58,6 +68,7 @@ func defaultConfig() *Config {
 				MaxFilesPerBatch: 800,
 			},
 		},
+		Schema: SchemaConfig{Enabled: true, WideTableCols: 50},
 	}
 }
 
@@ -112,6 +123,10 @@ func loadConfigLocked() *Config {
 	if c.Rules.Thresholds.MaxFilesPerBatch <= 0 {
 		c.Rules.Thresholds.MaxFilesPerBatch = def.Rules.Thresholds.MaxFilesPerBatch
 	}
+	if c.Schema.WideTableCols <= 0 {
+		c.Schema.WideTableCols = def.Schema.WideTableCols
+	}
+	// Enabled 零值（旧配置缺字段）按开启处理，保持 v0.2.0 默认行为。
 	return &c
 }
 
@@ -146,10 +161,11 @@ func writeConfigLocked(c *Config) error {
 // publicConfig 回给 UI 的配置。
 func (c *Config) publicConfig() map[string]any {
 	return map[string]any{
-		"actor":           c.Actor,
-		"rules":           c.Rules,
-		"defaultDialect":  c.DefaultDialect,
+		"actor":            c.Actor,
+		"rules":            c.Rules,
+		"schema":           c.Schema,
+		"defaultDialect":   c.DefaultDialect,
 		"defaultMigration": c.DefaultMigration,
-		"dataDir":         dbxpluginsdk.DataDir(),
+		"dataDir":          dbxpluginsdk.DataDir(),
 	}
 }

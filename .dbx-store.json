@@ -1,6 +1,6 @@
 {
   "name": "SQL Review",
-  "description": "静态 SQL 评审台：规则化评审破坏性变更、迁移规范、性能与结构质量；附按方言组织的最佳实践库，评审时联动推荐优化建议。不连库、不执行 SQL。",
+  "description": "静态 SQL 评审台：规则化评审破坏性变更、迁移规范、性能与结构质量；附按方言组织的最佳实践库，评审时联动推荐优化建议；v0.3.0 提供独立的跨文件架构评审页（虚拟数据字典 + ARCH 规则集，独立评分）。不连库、不执行 SQL。",
   "icon": "assets/plugin.svg",
   "tags": [
     "sql",
@@ -14,18 +14,20 @@
   "permissions": [
     "host.workbench"
   ],
-  "source": "https://github.com/SmallRob/dbx-sql-review/tree/v0.1.33",
+  "source": "https://github.com/SmallRob/dbx-sql-review/tree/v0.3.0",
   "homepage": "https://github.com/SmallRob/dbx-sql-review",
   "license": "Apache-2.0",
-  "releaseNotes": "修复评审结果布局：风险命中列表不再被「相关最佳实践」挤压裁切，命中项按内容完整显示并在列表内滚动；相关最佳实践改为默认折叠、独立滚动的详情块。保留 v0.1.32 评分修复与 v0.1.31 最佳实践库。全程不连库、不执行 SQL。",
+  "releaseNotes": "v0.3.0：架构评审拆为独立标签页（粘贴/多文件直连，批量报告一键跳转）；VDD 建模补强——CHANGE COLUMN 重命名、RENAME TABLE/RENAME TO、多列外键完整列清单、列级 REFERENCES 接入关系规则、ARCH016 改按表唯一、ARCH023 别名映射归还真实表；ARCH 规则目录与宽表阈值进规则设置页。全程静态词法分析，不连库、不执行 SQL。",
   "localizations": {
     "en": {
       "name": "SQL Review",
-      "description": "Static SQL review workbench: rule-based checks for destructive changes, migration hygiene, performance and schema quality, plus a dialect-aware best-practice catalog surfaced during review. Never connects to a database and never executes the SQL under review."
+      "description": "Static SQL review workbench: rule-based checks for destructive changes, migration hygiene, performance and schema quality, plus a dialect-aware best-practice catalog surfaced during review. v0.3.0 ships a standalone cross-file architecture review page over a virtual data dictionary with ARCH rules; the architecture score is independent of the six-dimension SQL quality score. Never connects to a database and never executes the SQL under review."
     },
     "zh-CN": {
       "name": "SQL 评审台",
-      "description": "静态 SQL 评审台：规则化评审破坏性变更、迁移规范、性能与结构质量；附按方言组织的最佳实践库，评审时联动推荐优化建议。不连库、不执行 SQL。"
+      "description": "静态 SQL 评审台：规则化评审破坏性变更、迁移规范、性能与结构质量；附按方言组织的最佳实践库，评审时联动推荐优化建议；v0.3.0 提供独立的跨文件架构评审页（虚拟数据字典 + ARCH 规则集），架构分独立评分，不计入六维质量分。不连库、不执行 SQL。"
     }
   }
 }
+
+

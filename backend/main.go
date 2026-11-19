@@ -22,7 +22,7 @@ import (
 	dbxpluginsdk "github.com/t8y2/dbx/plugins/sdk/go/dbx-plugin-sdk"
 )
 
-var pluginVersion = "0.1.33"
+var pluginVersion = "0.3.0"
 
 const pluginID = "io.github.smallrob.sql-review"
 
@@ -109,7 +109,8 @@ func (p *plugin) Handle(
 	case "rules/get":
 		c := p.cfg()
 		return map[string]any{"rules": Rules(c.Rules), "config": c.Rules,
-			"thresholds": c.Rules.Thresholds}, nil
+			"thresholds": c.Rules.Thresholds, "schema": c.Schema,
+			"schemaRules": schemaRulesMeta(c.Rules)}, nil
 
 	case "rules/save":
 		c := p.cfg()
@@ -122,10 +123,21 @@ func (p *plugin) Handle(
 			return nil, dbxpluginsdk.NewError(-32602, "config 格式错误")
 		}
 		c.Rules = normalizeRules(rc, c.Rules)
+		// schema 是架构评审子配置（开关 + 宽表阈值），可选传入。
+		if rawSchema, ok := values["schema"]; ok {
+			var sc SchemaConfig
+			if err := json.Unmarshal(rawSchema, &sc); err != nil {
+				return nil, dbxpluginsdk.NewError(-32602, "schema 格式错误")
+			}
+			if sc.WideTableCols <= 0 {
+				sc.WideTableCols = defaultConfig().Schema.WideTableCols
+			}
+			c.Schema = sc
+		}
 		if err := saveConfig(c); err != nil {
 			return nil, dbxpluginsdk.NewError(-32000, "保存失败: "+err.Error())
 		}
-		return map[string]any{"rules": Rules(c.Rules), "config": c.Rules}, nil
+		return map[string]any{"rules": Rules(c.Rules), "config": c.Rules, "schema": c.Schema}, nil
 
 	case "review/sql":
 		sqlText := str("sql")
@@ -204,6 +216,7 @@ func (p *plugin) Handle(
 		want := str("path")
 		for _, r := range sess.Results {
 			if r.File == want {
+				r.withPractices()
 				return map[string]any{"result": r}, nil
 			}
 		}
@@ -215,6 +228,39 @@ func (p *plugin) Handle(
 			return nil, dbxpluginsdk.NewError(-32602, "批次不存在或尚未运行")
 		}
 		return map[string]any{"markdown": exportMarkdown(sess.Report, sess.Results)}, nil
+
+	case "batch/architecture":
+		sess := p.batches.get(str("batchId"))
+		if sess == nil || sess.Report == nil {
+			return nil, dbxpluginsdk.NewError(-32602, "批次不存在或尚未运行")
+		}
+		return map[string]any{"architecture": sess.Report.Architecture}, nil
+
+	case "batch/architecture/export":
+		sess := p.batches.get(str("batchId"))
+		if sess == nil || sess.Report == nil {
+			return nil, dbxpluginsdk.NewError(-32602, "批次不存在或尚未运行")
+		}
+		return map[string]any{"markdown": exportArchitectureMarkdown(sess.Report)}, nil
+
+	case "schema/review":
+		// 直接对传入的多文件文本做架构评审（无需建 session）。
+		var files []batchInput
+		if raw, ok := values["files"]; ok && len(raw) > 0 {
+			_ = json.Unmarshal(raw, &files)
+		}
+		if sqlText := str("sql"); strings.TrimSpace(sqlText) != "" {
+			files = append(files, batchInput{Path: str("file"), Content: sqlText})
+		}
+		if len(files) == 0 {
+			return nil, dbxpluginsdk.NewError(-32602, "files 或 sql 不能为空")
+		}
+		cfg := p.cfg()
+		dialect := NormalizeDialect(str("dialect"))
+		model := BuildSchemaModel(files, dialect)
+		report := RunSchemaReview(model, cfg.Rules, true)
+		return map[string]any{"architecture": report, "dialect": string(model.Dialect),
+			"note": "静态词法分析：未连接数据库，不执行被评审的 SQL。"}, nil
 
 	case "audit/list":
 		limit := 200

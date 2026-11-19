@@ -3,9 +3,9 @@
   "manifest_version": 1,
   "id": "io.github.smallrob.sql-review",
   "name": "SQL Review",
-  "version": "0.1.33",
+  "version": "0.3.0",
   "publisher": "smallrob",
-  "description": "静态 SQL 评审台：规则化评审破坏性变更、迁移规范、性能与结构质量；附按方言组织的最佳实践库，评审时联动推荐优化建议。不连库、不执行 SQL。",
+  "description": "静态 SQL 评审台：规则化评审破坏性变更、迁移规范、性能与结构质量；附按方言组织的最佳实践库，评审时联动推荐优化建议；v0.3.0 提供独立的跨文件架构评审页（虚拟数据字典 + ARCH 规则集，独立评分）。不连库、不执行 SQL。",
   "icon": "assets/plugin.svg",
   "source": "https://github.com/SmallRob/dbx-sql-review",
   "homepage": "https://github.com/SmallRob/dbx-sql-review",
@@ -84,14 +84,14 @@
     {
       "type": "mcp",
       "id": "io.github.smallrob.sql-review.mcp",
-      "description": "把只读的静态 SQL 评审、结果读取、优化建议、规则清单与最佳实践库暴露给 MCP 客户端和内置 AI。五个工具全部为 read，支持 MySQL、SQLite、SQL Server 与 PostgreSQL，不连接数据库、不执行被评审的 SQL。",
+      "description": "把只读的静态 SQL 评审、结果读取、优化建议、规则清单、最佳实践库与跨文件架构评审暴露给 MCP 客户端和内置 AI。六个工具全部为 read，支持 MySQL、SQLite、SQL Server 与 PostgreSQL，不连接数据库、不执行被评审的 SQL。",
       "external_tools": true,
       "ai_tools": true,
       "toolsets": [
         {
           "id": "review",
           "title": "只读评审",
-          "description": "SQL 评审、结果续查、优化建议与规则清单。均不执行被评审语句。"
+          "description": "SQL 评审、结果续查、优化建议、规则清单、最佳实践与架构评审。均不执行被评审语句。"
         }
       ],
       "tools": {
@@ -112,6 +112,10 @@
           "toolset": "review"
         },
         "sql_best_practices": {
+          "access": "read",
+          "toolset": "review"
+        },
+        "sql_schema_review": {
           "access": "read",
           "toolset": "review"
         }

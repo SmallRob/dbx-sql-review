@@ -53,15 +53,18 @@ type batchSummary struct {
 }
 
 type BatchReport struct {
-	ID           string         `json:"id"`
-	Dialect      string         `json:"dialect"`
-	RulesProfile string         `json:"rulesProfile"`
-	CreatedAt    string         `json:"createdAt"`
-	Summary      batchSummary   `json:"summary"`
-	Files        []fileSummary  `json:"files"`
-	Consistency  []Finding      `json:"consistency"`
+	ID                 string         `json:"id"`
+	Dialect            string         `json:"dialect"`
+	RulesProfile       string         `json:"rulesProfile"`
+	CreatedAt          string         `json:"createdAt"`
+	Summary            batchSummary   `json:"summary"`
+	Files              []fileSummary  `json:"files"`
+	Consistency        []Finding      `json:"consistency"`
 	ConsistencySummary map[string]any `json:"consistencySummary"`
-	Note         string         `json:"note,omitempty"`
+	// Architecture 是 v0.2.0 跨文件架构评审报告；独立评分，不计入六维质量分。
+	// 配置关闭架构评审时为 nil，旧客户端可忽略该字段。
+	Architecture *ArchitectureReport `json:"architecture,omitempty"`
+	Note         string              `json:"note,omitempty"`
 }
 
 type batchSession struct {
@@ -224,6 +227,20 @@ func (p *plugin) runBatch(id string, emitter *dbxpluginsdk.Emitter) (*BatchRepor
 		Note: "静态词法分析：未连接数据库，不执行被评审的 SQL。",
 	}
 	report.Summary, report.Files = summarizeBatch(results, consistency)
+
+	// 第三层：跨文件架构评审（VDD）。独立评分，不改动既有六维质量分；
+	// 配置 schema.enabled=false 时跳过，回退到 v0.1.33 行为。
+	if cfg.Schema.Enabled {
+		if emitter != nil {
+			_ = emitter.Event("batch/progress", map[string]any{
+				"batchId": id, "stage": "schema", "done": len(files), "total": len(files),
+				"message": "构建虚拟数据字典并做架构评审",
+			})
+		}
+		model := BuildSchemaModel(files, NormalizeDialect(sess.Dialect))
+		report.Architecture = RunSchemaReview(model, cfg.Rules, cfg.Schema.Enabled)
+	}
+
 	p.batches.finish(id, report, results)
 	p.persistReport(report, results)
 
@@ -391,6 +408,21 @@ func exportMarkdown(r *BatchReport, results []*Result) string {
 		b.WriteString("\n")
 	}
 
+	if r.Architecture != nil {
+		a := r.Architecture
+		b.WriteString("## 架构评审\n\n")
+		fmt.Fprintf(&b, "架构分 **%d**（%s %s）· 表 %d · 列 %d · 索引 %d · 外键 %d · 问题 %d\n\n",
+			a.Score, a.Grade, a.GradeLabel, a.Stats.Tables, a.Stats.Columns,
+			a.Stats.Indexes, a.Stats.References, a.Stats.Findings)
+		for _, f := range a.Findings {
+			fmt.Fprintf(&b, "- **[%s] %s %s** — %s\n", f.Severity, f.RuleID, f.Title, f.Message)
+			if f.Advice != "" {
+				fmt.Fprintf(&b, "  - 建议：%s\n", f.Advice)
+			}
+		}
+		b.WriteString("\n")
+	}
+
 	b.WriteString("## 问题明细\n\n")
 	for _, res := range results {
 		if len(res.Findings) == 0 {
@@ -408,6 +440,57 @@ func exportMarkdown(r *BatchReport, results []*Result) string {
 		b.WriteString("\n")
 	}
 	b.WriteString("---\n\n> 由 dbx 插件 SQL Review 生成；静态分析为词法级，动态拼接的标识符无法还原。\n")
+	return b.String()
+}
+
+// exportArchitectureMarkdown 单独导出架构评审章节。
+func exportArchitectureMarkdown(r *BatchReport) string {
+	var b strings.Builder
+	b.WriteString("# 架构评审报告\n\n")
+	if r != nil && r.Architecture != nil {
+		a := r.Architecture
+		fmt.Fprintf(&b, "- 批次：`%s`\n- 架构分：%d（%s %s）\n\n", r.ID, a.Score, a.Grade, a.GradeLabel)
+		fmt.Fprintf(&b, "## 统计\n\n表 %d · 列 %d · 索引 %d · 外键 %d · 问题 %d",
+			a.Stats.Tables, a.Stats.Columns, a.Stats.Indexes, a.Stats.References, a.Stats.Findings)
+		if a.Stats.ParseErrors > 0 {
+			fmt.Fprintf(&b, " · 未解析语句 %d", a.Stats.ParseErrors)
+		}
+		b.WriteString("\n\n")
+		if len(a.Findings) > 0 {
+			b.WriteString("## 问题清单\n\n")
+			for _, f := range a.Findings {
+				fmt.Fprintf(&b, "- **[%s] %s %s** — %s\n", f.Severity, f.RuleID, f.Title, f.Message)
+				if f.Advice != "" {
+					fmt.Fprintf(&b, "  - 建议：%s\n", f.Advice)
+				}
+				if len(f.PracticeIDs) > 0 {
+					fmt.Fprintf(&b, "  - 关联最佳实践：%s\n", strings.Join(f.PracticeIDs, ", "))
+				}
+			}
+			b.WriteString("\n")
+		}
+		if len(a.Suggestions) > 0 {
+			b.WriteString("## 优化建议\n\n")
+			for _, s := range a.Suggestions {
+				fmt.Fprintf(&b, "### %s\n\n", s.Title)
+				if s.Message != "" {
+					fmt.Fprintf(&b, "%s\n\n", s.Message)
+				}
+				if s.Advice != "" {
+					fmt.Fprintf(&b, "建议：%s\n\n", s.Advice)
+				}
+				if s.GoodSQL != "" {
+					b.WriteString("推荐写法：\n```sql\n" + s.GoodSQL + "\n```\n")
+				}
+				if s.BadSQL != "" {
+					b.WriteString("避免写法：\n```sql\n" + s.BadSQL + "\n```\n")
+				}
+			}
+		}
+	} else {
+		b.WriteString("本批次未产出架构评审（可能已关闭架构评审开关，或未识别到 DDL）。\n")
+	}
+	b.WriteString("\n> 架构评审为静态词法级分析：不连接数据库、不执行被评审 SQL。\n")
 	return b.String()
 }
 
@@ -531,10 +614,10 @@ func consistencyFindings(locals []localFile, cfg RuleConfig) ([]Finding, map[str
 	}
 
 	summary := map[string]any{
-		"files":         len(locals),
-		"namedVersions": len(localByVer),
+		"files":             len(locals),
+		"namedVersions":     len(localByVer),
 		"duplicateVersions": dupVersions,
-		"gaps":          gaps,
+		"gaps":              gaps,
 		"duplicateContents": dupContents,
 	}
 	return fs, summary
