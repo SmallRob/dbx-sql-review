@@ -66,7 +66,7 @@ def request(method: str, path: str, body: dict | None = None) -> tuple[int, obje
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--pr", type=int, default=546, help="目标商店 PR 编号（默认 558）")
+    ap.add_argument("--pr", type=int, default=558, help="目标商店 PR 编号（默认 558）")
     ap.add_argument("--candidate", default="", help="候选 JSON 路径，默认取本仓库 store/candidates 下唯一文件")
     ap.add_argument("--apply", action="store_true", help="真正执行写操作；默认 dry-run")
     ap.add_argument("--close-duplicates", action="store_true", help="关闭同插件的其它 open PR")
