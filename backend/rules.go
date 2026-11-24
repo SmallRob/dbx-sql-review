@@ -149,6 +149,15 @@ var ruleCatalog = []RuleMeta{
 	{ID: "SQL027", Title: "FROM 逗号隐式连接", Category: catPerformance,
 		Help:   "FROM a, b 是隐式连接，连接条件只能写在 WHERE 里，漏写就会产生笛卡尔积。",
 		Advice: "改用显式 JOIN … ON；确实要隐式连接时，确保 WHERE 覆盖所有表的连接条件。", DefaultSeverity: "medium"},
+	{ID: "SQL028", Title: "深分页（大 OFFSET）", Category: catPerformance,
+		Help:   "LIMIT 大偏移 / OFFSET 深分页需要先扫描并丢弃前 offset 行，偏移越大扫描与排序代价越高。",
+		Advice: "改用游标分页（WHERE id > ? ORDER BY id LIMIT n）；跳页场景先用覆盖索引子查询定位主键再回表。", DefaultSeverity: "medium"},
+	{ID: "SQL029", Title: "超大 IN 列表", Category: catPerformance,
+		Help:   "IN (…) 列表过长会让执行计划不稳定、增大报文与解析成本。",
+		Advice: "拆分批量查询，或改用临时表 / JOIN；单批 IN 项数控制在阈值以内。", DefaultSeverity: "low"},
+	{ID: "SQL039", Title: "多表连接扇出", Category: catPerformance,
+		Help:   "连接表数量过多时，优化器可选计划空间急剧增大，容易出现嵌套循环放大与错误连接顺序。",
+		Advice: "拆分查询；确认各连接谓词有索引、按小表驱动；必要时先物化中间结果。", DefaultSeverity: "low"},
 
 	// ---- 结构质量
 	{ID: "SQL030", Title: "建表缺少主键", Category: catSchema,

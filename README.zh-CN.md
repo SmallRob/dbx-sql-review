@@ -29,13 +29,13 @@
 | 不碰凭据 | 不保存 host/账号/口令——配置里只有规则开关与阈值 |
 | 构建可复现 | SDK 随仓库自带，`GOPROXY=off` 也能编译出同样的二进制 |
 
-## 规则集（61 条）
+## 规则集（64 条）
 
 | 类别 | 条数 | 代表规则 |
 |---|--:|---|
 | 破坏性 | 12 | `SQL001` 删表/删库 · `SQL003` UPDATE/DELETE 无 WHERE · `SQL073` 动态 EXEC · `SQL087` CASCADE |
 | 迁移规范 | 17 | `SQL010` 文件命名不规范 · `SQL014` 单文件语句过多 · `SQL070` SQL Server DDL 缺少守卫 · `SQL080` PostgreSQL DDL 缺少守卫 |
-| 性能 | 12 | `SQL022` SELECT * · `SQL023` 无谓词全表扫描 · `SQL071` NOLOCK · `SQL081` 索引未用 CONCURRENTLY |
+| 性能 | 15 | `SQL022` SELECT * · `SQL023` 无谓词全表扫描 · `SQL028` 深分页（大 OFFSET）· `SQL029` 超大 IN 列表 · `SQL039` 多表连接扇出 · `SQL071` NOLOCK · `SQL081` 索引未用 CONCURRENTLY |
 | 结构质量 | 16 | `SQL030` 建表缺主键 · `SQL032` 浮点存金额 · `SQL075` 非 Unicode 类型 · `SQL084` SERIAL · `SQL085` JSON 未用 JSONB |
 | 敏感数据 | 1 | `SQL040` 敏感列（password/token/身份证/手机/银行卡…） |
 | 目录一致性 | 3 | `SQL050` 版本重复 · `SQL051` 版本缺口 · `SQL052` 不同版本内容雷同 |

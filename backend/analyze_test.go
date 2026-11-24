@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -338,5 +339,50 @@ func TestFlywayChecksum(t *testing.T) {
 	}
 	if a == c {
 		t.Fatal("不同内容校验和应不同")
+	}
+}
+
+func TestSlowQueryRules(t *testing.T) {
+	// ① 深分页：偏移达到 1000 触发 SQL028；小偏移不触发。
+	if r := analyze(t, "SELECT * FROM orders LIMIT 1000, 20;", AnalyzeOptions{}); findRule(r, "SQL028") == nil {
+		t.Fatal("LIMIT off, n 偏移 1000 应命中 SQL028")
+	}
+	if r := analyze(t, "SELECT * FROM orders LIMIT 20 OFFSET 500;", AnalyzeOptions{}); findRule(r, "SQL028") != nil {
+		t.Fatal("偏移 500 不应命中 SQL028")
+	}
+
+	// ② 超大 IN 列表：51 项触发 SQL029；IN 子查询不按列表项数计。
+	vals := make([]string, 0, 51)
+	for i := 0; i < 51; i++ {
+		vals = append(vals, strconv.Itoa(i))
+	}
+	inSQL := "SELECT * FROM users WHERE id IN (" + strings.Join(vals, ",") + ");"
+	if r := analyze(t, inSQL, AnalyzeOptions{}); findRule(r, "SQL029") == nil {
+		t.Fatal("51 项 IN 列表应命中 SQL029")
+	}
+	if r := analyze(t, "SELECT * FROM users WHERE id IN (SELECT user_id FROM orders);", AnalyzeOptions{}); findRule(r, "SQL029") != nil {
+		t.Fatal("IN 子查询不应命中 SQL029")
+	}
+
+	// ③ 多表连接扇出：5 个 JOIN 触发 SQL039。
+	joinSQL := `SELECT a.x FROM a
+		JOIN b ON a.id = b.aid
+		JOIN c ON b.id = c.bid
+		JOIN d ON c.id = d.cid
+		JOIN e ON d.id = e.did
+		JOIN f ON e.id = f.eid;`
+	r := analyze(t, joinSQL, AnalyzeOptions{})
+	if findRule(r, "SQL039") == nil {
+		t.Fatal("6 表连接应命中 SQL039")
+	}
+
+	// 命中计入慢查询统计，并归入性能维度。
+	if r.Stats.SlowQueries < 1 {
+		t.Fatalf("SlowQueries 应 ≥1，实际 %d", r.Stats.SlowQueries)
+	}
+	for _, f := range r.Findings {
+		if slowQueryRuleIDs[f.RuleID] && f.Category != catPerformance {
+			t.Fatalf("慢查询规则 %s 应归性能类别，实际 %s", f.RuleID, f.Category)
+		}
 	}
 }

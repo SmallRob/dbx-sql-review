@@ -49,6 +49,15 @@ type QualityStats struct {
 	Alter         int `json:"alter"`
 	CreateTable   int `json:"createTable"`
 	UnfilteredDML int `json:"unfilteredDml"`
+	// SlowQueries 命中慢查询规则的语句条数（深分页 / 超大 IN / 多表扇出）。
+	SlowQueries int `json:"slowQueries"`
+}
+
+// slowQueryRuleIDs 是「慢查询」规则族：命中即计入性能维度罚分与 SlowQueries 统计。
+var slowQueryRuleIDs = map[string]bool{
+	"SQL028": true, // 深分页（大 OFFSET）
+	"SQL029": true, // 超大 IN 列表
+	"SQL039": true, // 多表连接扇出
 }
 
 // QualityMetrics 是回给 UI 的完整质量画像。
@@ -184,6 +193,9 @@ func ComputeQuality(findings []Finding, stats QualityStats) QualityMetrics {
 		if severityRank[f.Severity] > severityRank[worst[f.Category]] {
 			worst[f.Category] = f.Severity
 		}
+		if slowQueryRuleIDs[f.RuleID] {
+			m.Stats.SlowQueries++
+		}
 	}
 	m.Dimensions = buildDims(func(key string) (int, int, string) {
 		return dimScore(penalty[key]), hits[key], worst[key]
@@ -307,6 +319,7 @@ func AggregateQuality(results []*Result, consistency []Finding) QualityMetrics {
 		stats.Alter += r.Stats.Alter
 		stats.CreateTable += r.Stats.CreateTable
 		stats.UnfilteredDML += r.Stats.UnfilteredDML
+		stats.SlowQueries += r.Stats.SlowQueries
 		if r.Stats.MaxNesting > stats.MaxNesting {
 			stats.MaxNesting = r.Stats.MaxNesting
 		}

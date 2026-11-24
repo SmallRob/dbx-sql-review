@@ -32,13 +32,13 @@ has to read every script by hand.
 | No credentials | No host, account, or password is stored — the config holds rule switches and thresholds only |
 | Reproducible builds | The SDK ships inside the repository, so the same binary builds with `GOPROXY=off` |
 
-## Rule set (61 rules)
+## Rule set (64 rules)
 
 | Category | Count | Examples |
 |---|--:|---|
 | Destructive | 12 | `SQL001` DROP table/database · `SQL003` UPDATE/DELETE without WHERE · `SQL073` dynamic EXEC · `SQL087` CASCADE |
 | Migration hygiene | 17 | `SQL010` bad file naming · `SQL014` too many statements per file · `SQL070` unguarded SQL Server DDL · `SQL080` unguarded PostgreSQL DDL |
-| Performance | 12 | `SQL022` `SELECT *` · `SQL023` unfiltered full scan · `SQL071` NOLOCK · `SQL081` index without CONCURRENTLY |
+| Performance | 15 | `SQL022` `SELECT *` · `SQL023` unfiltered full scan · `SQL028` deep pagination (large OFFSET) · `SQL029` oversized IN list · `SQL039` multi-table join fan-out · `SQL071` NOLOCK · `SQL081` index without CONCURRENTLY |
 | Schema quality | 16 | `SQL030` table without primary key · `SQL032` float for money · `SQL075` non-Unicode types · `SQL084` SERIAL · `SQL085` JSON instead of JSONB |
 | Sensitive data | 1 | `SQL040` sensitive column names (password/token/id card/phone/bank card…) |
 | Directory consistency | 3 | `SQL050` duplicate version · `SQL051` version gap · `SQL052` identical content under different versions |

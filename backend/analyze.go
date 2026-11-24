@@ -5,6 +5,7 @@ import (
 	"math"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -56,6 +57,7 @@ func (r *Result) refresh() {
 	}
 	r.Score, r.Level = scoreOf(r.Findings)
 	r.Metrics = ComputeQuality(r.Findings, r.Stats)
+	r.Stats = r.Metrics.Stats
 }
 
 // withPractices 依据命中与方言附加最佳实践建议。由 review/sql 显式调用，
@@ -465,6 +467,9 @@ func (a *analyzer) checkStatement(s *stmtInfo) {
 	}
 	if a.dialect == DialectPostgreSQL {
 		a.checkPostgresStatement(s)
+	}
+	if s.Kind == "SELECT" || s.Kind == "UPDATE" || s.Kind == "DELETE" {
+		a.checkSlowPatterns(s)
 	}
 	switch s.Kind {
 	case "DROP":
@@ -997,6 +1002,147 @@ func (a *analyzer) checkImplicitJoin(s *stmtInfo) {
 	a.addSev("SQL027", sev, s.Line, s.Index,
 		fmt.Sprintf("FROM 中使用 %d 处逗号隐式连接", commas),
 		"改用 JOIN … ON 显式连接；隐式连接漏写条件就是笛卡尔积。", nil, s.Dynamic)
+}
+
+// checkSlowPatterns 静态识别常见慢查询形态：深分页、超大 IN 列表、多表连接扇出。
+// 纯词法判定，不连库、不执行 SQL。
+func (a *analyzer) checkSlowPatterns(s *stmtInfo) {
+	// ① 深分页：偏移达到阈值
+	if off, ok := deepPageOffset(s.Tokens); ok && off >= int64(a.deepPageThreshold()) {
+		a.add("SQL028", s.Line, s.Index,
+			fmt.Sprintf("分页偏移 %d 行（阈值 %d），深分页需扫描并丢弃前 %d 行", off, a.deepPageThreshold(), off),
+			"改用游标分页（WHERE id > ? ORDER BY id LIMIT n）；跳页用覆盖索引子查询先定位主键再回表。",
+			map[string]any{"offset": off, "threshold": a.deepPageThreshold()}, s.Dynamic)
+	}
+	// ② 超大 IN 列表
+	if n := inListValues(s.Tokens); n >= a.inListThreshold() {
+		a.add("SQL029", s.Line, s.Index,
+			fmt.Sprintf("IN 列表含 %d 项（阈值 %d）", n, a.inListThreshold()),
+			"拆分批量查询或改临时表 / JOIN，控制单批 IN 项数。",
+			map[string]any{"values": n, "threshold": a.inListThreshold()}, s.Dynamic)
+	}
+	// ③ 多表连接扇出
+	if j := joinCount(s.Tokens); j >= a.joinTableThreshold() {
+		a.add("SQL039", s.Line, s.Index,
+			fmt.Sprintf("单条语句连接 %d 张表（阈值 %d）", j, a.joinTableThreshold()),
+			"拆分查询；确认连接谓词有索引、按小表驱动，必要时物化中间结果。",
+			map[string]any{"joins": j, "threshold": a.joinTableThreshold()}, s.Dynamic)
+	}
+}
+
+func (a *analyzer) deepPageThreshold() int {
+	if a.cfg.Thresholds.DeepPageOffset > 0 {
+		return a.cfg.Thresholds.DeepPageOffset
+	}
+	return 1000
+}
+
+func (a *analyzer) inListThreshold() int {
+	if a.cfg.Thresholds.InListSize > 0 {
+		return a.cfg.Thresholds.InListSize
+	}
+	return 50
+}
+
+func (a *analyzer) joinTableThreshold() int {
+	if a.cfg.Thresholds.JoinTables > 0 {
+		return a.cfg.Thresholds.JoinTables
+	}
+	return 5
+}
+
+func numAt(toks []Token, i int) (int64, bool) {
+	if i < 0 || i >= len(toks) || toks[i].Kind != "num" {
+		return 0, false
+	}
+	n, err := strconv.ParseInt(toks[i].Text, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return n, true
+}
+
+// deepPageOffset 返回分页偏移量：MySQL 的 LIMIT off, n / LIMIT n OFFSET off，
+// 以及 T-SQL 的 OFFSET off ROWS。无偏移（仅 LIMIT n）时返回 ok=false。
+func deepPageOffset(toks []Token) (int64, bool) {
+	for i, t := range toks {
+		if t.Kind != "word" {
+			continue
+		}
+		switch t.Upper {
+		case "OFFSET":
+			if n, ok := numAt(toks, i+1); ok {
+				return n, true
+			}
+		case "LIMIT":
+			first, ok := numAt(toks, i+1)
+			if !ok {
+				continue
+			}
+			k := i + 2
+			// LIMIT <offset>, <count>：第一个数是偏移量
+			if k < len(toks) && toks[k].Kind == "op" && toks[k].Text == "," {
+				return first, true
+			}
+			// LIMIT <count> OFFSET <offset>
+			if k < len(toks) && toks[k].Kind == "word" && toks[k].Upper == "OFFSET" {
+				if off, ok := numAt(toks, k+1); ok {
+					return off, true
+				}
+			}
+		}
+	}
+	return 0, false
+}
+
+// inListValues 返回 IN 列表的值个数；IN (SELECT …) 子查询返回 0（不适用）。
+func inListValues(toks []Token) int {
+	for i, t := range toks {
+		if t.Kind != "word" || t.Upper != "IN" {
+			continue
+		}
+		if i+1 >= len(toks) || toks[i+1].Kind != "op" || toks[i+1].Text != "(" {
+			continue
+		}
+		depth, commas, j := 0, 0, i+2
+		subquery := false
+		for ; j < len(toks); j++ {
+			tk := toks[j]
+			if tk.Kind == "op" && tk.Text == "(" {
+				depth++
+				continue
+			}
+			if tk.Kind == "op" && tk.Text == ")" {
+				if depth == 0 {
+					break
+				}
+				depth--
+				continue
+			}
+			if depth == 0 && tk.Kind == "op" && tk.Text == "," {
+				commas++
+			}
+			if tk.Kind == "word" && (tk.Upper == "SELECT" || tk.Upper == "WITH") {
+				subquery = true
+			}
+		}
+		if subquery {
+			return 0
+		}
+		return commas + 1
+	}
+	return 0
+}
+
+// joinCount 统计语句里的连接数（含 STRAIGHT_JOIN）。
+func joinCount(toks []Token) int {
+	n := 0
+	for _, t := range toks {
+		if t.Kind == "word" && (t.Upper == "JOIN" || t.Upper == "STRAIGHT_JOIN") {
+			n++
+		}
+	}
+	return n
 }
 
 func (a *analyzer) checkColumn(table string, c colDef, line, idx int, dynamic bool, strictComment bool) {

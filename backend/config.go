@@ -17,6 +17,12 @@ type Thresholds struct {
 	MaxStatements int `json:"maxStatements"`
 	// MaxFilesPerBatch 是单批次文件数上限，防止一次上传把内存打满。
 	MaxFilesPerBatch int `json:"maxFilesPerBatch"`
+	// DeepPageOffset 深分页阈值：OFFSET/LIMIT 偏移达到该行数即判慢查询。
+	DeepPageOffset int `json:"deepPageOffset"`
+	// InListSize IN 列表项数阈值；超过则提示拆分。
+	InListSize int `json:"inListSize"`
+	// JoinTables 单条语句连接表数阈值；超过则提示连接扇出。
+	JoinTables int `json:"joinTables"`
 }
 
 // RuleConfig 是规则开关与级别覆盖。
@@ -66,6 +72,9 @@ func defaultConfig() *Config {
 				LargeTableRows:   1000000,
 				MaxStatements:    40,
 				MaxFilesPerBatch: 800,
+				DeepPageOffset:   1000,
+				InListSize:       50,
+				JoinTables:       5,
 			},
 		},
 		Schema: SchemaConfig{Enabled: true, WideTableCols: 50},
@@ -122,6 +131,15 @@ func loadConfigLocked() *Config {
 	}
 	if c.Rules.Thresholds.MaxFilesPerBatch <= 0 {
 		c.Rules.Thresholds.MaxFilesPerBatch = def.Rules.Thresholds.MaxFilesPerBatch
+	}
+	if c.Rules.Thresholds.DeepPageOffset <= 0 {
+		c.Rules.Thresholds.DeepPageOffset = def.Rules.Thresholds.DeepPageOffset
+	}
+	if c.Rules.Thresholds.InListSize <= 0 {
+		c.Rules.Thresholds.InListSize = def.Rules.Thresholds.InListSize
+	}
+	if c.Rules.Thresholds.JoinTables <= 0 {
+		c.Rules.Thresholds.JoinTables = def.Rules.Thresholds.JoinTables
 	}
 	if c.Schema.WideTableCols <= 0 {
 		c.Schema.WideTableCols = def.Schema.WideTableCols

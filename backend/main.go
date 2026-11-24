@@ -22,7 +22,7 @@ import (
 	dbxpluginsdk "github.com/t8y2/dbx/plugins/sdk/go/dbx-plugin-sdk"
 )
 
-var pluginVersion = "0.3.0"
+var pluginVersion = "0.3.1"
 
 const pluginID = "io.github.smallrob.sql-review"
 
@@ -350,6 +350,15 @@ func normalizeRules(rc RuleConfig, fallback RuleConfig) RuleConfig {
 	}
 	if rc.Thresholds.MaxStatements <= 0 {
 		rc.Thresholds.MaxStatements = fallback.Thresholds.MaxStatements
+	}
+	if rc.Thresholds.DeepPageOffset <= 0 {
+		rc.Thresholds.DeepPageOffset = fallback.Thresholds.DeepPageOffset
+	}
+	if rc.Thresholds.InListSize <= 0 {
+		rc.Thresholds.InListSize = fallback.Thresholds.InListSize
+	}
+	if rc.Thresholds.JoinTables <= 0 {
+		rc.Thresholds.JoinTables = fallback.Thresholds.JoinTables
 	}
 	if rc.Disabled == nil {
 		// nil 表示「没传这个字段」，保留既有配置；不能置空数组，

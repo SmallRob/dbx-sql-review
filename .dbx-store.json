@@ -14,10 +14,10 @@
   "permissions": [
     "host.workbench"
   ],
-  "source": "https://github.com/SmallRob/dbx-sql-review/tree/v0.3.0",
+  "source": "https://github.com/SmallRob/dbx-sql-review/tree/v0.3.1",
   "homepage": "https://github.com/SmallRob/dbx-sql-review",
   "license": "Apache-2.0",
-  "releaseNotes": "v0.3.0：架构评审拆为独立标签页（粘贴/多文件直连，批量报告一键跳转）；VDD 建模补强——CHANGE COLUMN 重命名、RENAME TABLE/RENAME TO、多列外键完整列清单、列级 REFERENCES 接入关系规则、ARCH016 改按表唯一、ARCH023 别名映射归还真实表；ARCH 规则目录与宽表阈值进规则设置页。全程静态词法分析，不连库、不执行 SQL。",
+  "releaseNotes": "v0.3.1：新增慢查询静态规则族——深分页（大 OFFSET）、超大 IN 列表、多表连接扇出；命中计入性能维度罚分与慢查询统计，纳入 SQL 质量评分；阈值可在规则设置页调整。全程静态词法分析，不连库、不执行 SQL。",
   "localizations": {
     "en": {
       "name": "SQL Review",
